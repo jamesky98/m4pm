@@ -1,0 +1,21 @@
+{
+  "name": "m4pm_server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "description": "",
+  "dependencies": {
+    "@apollo/server": "^4.3.3",
+    "apollo-server-express": "^3.11.1",
+    "cors": "^2.8.5",
+    "graphql": "^16.6.0"
+  },
+  "devDependencies": {
+    "prisma": "^4.10.1"
+  }
+}
