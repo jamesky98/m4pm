@@ -21,16 +21,16 @@ import { fileURLToPath } from "url";
 import { typeDefs as scalarTypeDefs } from "graphql-scalars";
 import { PrismaClient } from "@prisma/client";
 // graphql-upload
-import GraphQLUpload from "../node_modules/graphql-upload/GraphQLUpload.mjs";
-import graphqlUploadExpress from "../node_modules/graphql-upload/graphqlUploadExpress.mjs";
+import GraphQLUpload from "graphql-upload/GraphQLUpload.mjs";
+import graphqlUploadExpress from "graphql-upload/graphqlUploadExpress.mjs";
 import { print } from 'graphql';
 
 // utiles
 import { getUserId } from "./utils.js";
 
 // resolvers
-// import Query from "./resolvers/Query.js";
-// import Mutation from "./resolvers/Mutation.js";
+import Query from "./resolvers/Query.js";
+import Mutation from "./resolvers/Mutation.js";
 // import doc from "./resolvers/doc.js";
 // import doc_type from "./resolvers/doc_type.js";
 // import case_base from "./resolvers/case_base.js";
@@ -78,31 +78,31 @@ console.log("WorkPath: ", __dirname);
 const resolvers = {
   Query,
   Mutation,
-  doc,
-  doc_type,
-  case_base,
-  case_record_01,
-  case_record_02,
-  // case_apply_01,
-  // case_apply_02,
-  item_base,
-  cus,
-  employee,
-  // case_report_01,
-  // case_report_02,
-  ref_project,
-  gcp_record,
-  gcp,
-  gcp_type,
-  gcp_contact,
-  ref_use_eqpt,
-  ref_eqpt_check,
-  ref_eqpt,
-  ref_eqpt_type,
-  employee_empower,
-  employee_role,
-  employee_train,
-  Upload: GraphQLUpload,
+  // doc,
+  // doc_type,
+  // case_base,
+  // case_record_01,
+  // case_record_02,
+  // // case_apply_01,
+  // // case_apply_02,
+  // item_base,
+  // cus,
+  // employee,
+  // // case_report_01,
+  // // case_report_02,
+  // ref_project,
+  // gcp_record,
+  // gcp,
+  // gcp_type,
+  // gcp_contact,
+  // ref_use_eqpt,
+  // ref_eqpt_check,
+  // ref_eqpt,
+  // ref_eqpt_type,
+  // employee_empower,
+  // employee_role,
+  // employee_train,
+  // Upload: GraphQLUpload,
 };
 
 const prisma = new PrismaClient();

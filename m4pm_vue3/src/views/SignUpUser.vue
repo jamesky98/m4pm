@@ -19,49 +19,49 @@ const user_mail = ref('');
 const user_name2 = ref('');
 
 // 防止帳號重複建立
-// function doSignkup(){
-//   chkUser();
-// }
+function doSignkup(){
+  chkUser();
+}
 
-// const { mutate: chkUser, onDone: chkUserOnDone } = useMutation(
-//   UsersGQL.CHKUSERBYNAME,
-//   () => (
-//     {
-//       variables: {
-//         userName: user_name.value,
-//       }
-//     }),
-// );
-// chkUserOnDone(result=>{
-//   if (!result.loading){
-//     console.log(result.data.chkUserByName);
-//     if (result.data.chkUserByName){
-//       // 帳號重複
-//       console.log("帳號重複");
-//     }else{
-//       // 建立帳號
-//       console.log("建立");
-//       usersignup();
-//     }
-//   }
-// });
+const { mutate: chkUser, onDone: chkUserOnDone } = useMutation(
+  UsersGQL.CHKUSERBYNAME,
+  () => (
+    {
+      variables: {
+        userName: user_name.value,
+      }
+    }),
+);
+chkUserOnDone(result=>{
+  if (!result.loading){
+    console.log(result.data.chkUserByName);
+    if (result.data.chkUserByName){
+      // 帳號重複
+      console.log("帳號重複");
+    }else{
+      // 建立帳號
+      console.log("建立");
+      usersignup();
+    }
+  }
+});
 
-// 執行查詢
-// const { mutate: usersignup, onDone: signupOnDone, onError: usersignuponError } = useMutation(
-//   UsersGQL.SIGNUPMU,
-//   () => (
-//     {
-//       variables: {
-//         userName: user_name.value,
-//         userPassword: user_password.value,
-//         userMail: user_mail.value,
-//         userName2: user_name2.value,
-//       }
-//     }),
-// );
-// signupOnDone(result => {
-//   router.push("/");
-// })
+執行查詢
+const { mutate: usersignup, onDone: signupOnDone, onError: usersignuponError } = useMutation(
+  UsersGQL.SIGNUPMU,
+  () => (
+    {
+      variables: {
+        userName: user_name.value,
+        userPassword: user_password.value,
+        userMail: user_mail.value,
+        userName2: user_name2.value,
+      }
+    }),
+);
+signupOnDone(result => {
+  router.push("/");
+})
 
 </script>
 
@@ -76,7 +76,7 @@ const user_name2 = ref('');
                 <MDBCardBody class="p-md-5 mx-md-4">
                   <div class="text-center">
                     <img src="/LOGO01.png" style="width: 185px;" alt="logo">
-                    <h4 class="mt-1 mb-5 pb-1">航遙測校正管理系統</h4>
+                    <h4 class="mt-1 mb-5 pb-1">案件管理系統</h4>
                   </div>
                   <form @submit.prevent="doSignkup">
                     <p>註冊新帳號</p>

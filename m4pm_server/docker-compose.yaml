@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+  # mysql:
+  #   image: mysql
+  #   container_name: my-mysql
+  #   volumes: 
+  #     - type: bind
+  #       source: ./mysqldir
+  #       target: /var/lib/mysql
+  #   ports:
+  #     - '3307:3306'
+  #   environment:
+  #     - MYSQL_ROOT_PASSWORD=Nlsc!1234567
+  apollo: 
+    env_file: .env
+    build: .
+    ports: 
+      - "4100:4100"
+    container_name: m4pm_sever
+    # links:
+    #   - mysql
+    volumes:
+      - type: bind
+        source: ./public
+        target: /m4pm_sever/public
+
+    # depends_on: 
+    #   - db
+      #資料庫實體位置
+      #C:\ProgramData\MySQL\MySQL Server 8.0\Data

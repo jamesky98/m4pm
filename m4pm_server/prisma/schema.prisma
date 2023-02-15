@@ -1,12 +1,21 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch", "fullTextIndex", "filteredRelationCount"]
 }
 
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model user {
+  user_id           Int       @id @default(autoincrement())
+  user_name         String    @unique(map: "user_name_UNIQUE") @db.VarChar(255)
+  user_mail         String?   @db.VarChar(255)
+  user_password     String    @db.VarChar(255)
+  user_created_time DateTime? @default(now()) @db.DateTime(0)
+  user_updated_time DateTime? @db.DateTime(0)
+  active            Int       @default(0)
+  role              Int       @default(0)
+  user_name2        String    @db.VarChar(255)
 }
