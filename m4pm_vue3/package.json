@@ -13,15 +13,20 @@
     "@fortawesome/fontawesome-free": "^6.3.0",
     "@vue/apollo-composable": "^4.0.0-beta.2",
     "apollo-upload-client": "^17.0.0",
+    "datatables.net-bs5": "^1.13.2",
+    "datatables.net-dt": "^1.13.2",
+    "datatables.net-select": "^1.6.0",
+    "datatables.net-vue3": "^2.0.0",
     "graphql": "^16.6.0",
     "graphql-tag": "^2.12.6",
     "mdb-ui-kit": "^4.3.0",
     "mdb-vue-ui-kit": "git+https://oauth2:xfmb3NQ7xmmjona5VzHA@git.mdbootstrap.com/mdb/vue/mdb5/prd/mdb5-vue-ui-kit-pro-essential",
+    "path-browserify": "^1.0.1",
     "vue": "^3.2.45",
     "vue-router": "4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.0.0",
-    "vite": "^4.1.0"
+    "vite": "^4.1.1"
   }
 }

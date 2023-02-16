@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+src/assets/fonts/
+src/assets/cwtexyen/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

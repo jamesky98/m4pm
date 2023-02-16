@@ -24,6 +24,12 @@ const router = createRouter({
       name: "signup",
       component: () => import("../views/SignUpUser.vue"),
     },
+    {
+      path: "/useredit",
+      name: "useredit",
+      component: () => import("../views/UserMGView.vue"),
+      props: (route) => route.query,
+    },
   ],
 });
 
