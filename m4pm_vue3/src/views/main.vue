@@ -83,34 +83,63 @@ getchecktoken().then(res=>{
   const pointerY = ref("");
   const timebarStart = ref("");
   const timebarEnd = ref("");
+  
   const timebarWidth = ref("");
   const pointerWidth = ref("");
   const timebarFirstDateNum = ref("");
   const timebarLastDateNum = ref("");
+  const timebarPtDateNum = ref("");
+
   const timebarFirstDateStr = ref("");
   const timebarLastDateStr = ref("");
+  const timebarPtDateStr = ref("");
+
   const timebarType = ref(0); // 0:年 1:季 2:月 3:週
+  const mounthDays = [[31,29,31,30,31,30,31,31,30,31,30,31],[31,28,31,30,31,30,31,31,30,31,30,31]]; // 各月份日數
+  const tbarDOM = ref();
+  const tbarPointer = ref();
+  const tbarItem = ref([]);
 
 //#endregion 參數==========End
 
 
 // #region 時間軸==========Start
+  // 取得時間軸起迄位置
+  function getTBarSize(){
+    return new Promise((res,rej)=>{
+      let div=document.getElementById('timepointer');
+      tbarPointer.value = div;
+      let timebar=document.getElementById('timebar');
+      tbarDOM.value = timebar;
+
+      const parentXY = getPosition(timebar);
+
+      let boxLeft = parentXY.x;
+      let boxWidth = timebar.offsetWidth;
+      let boxRight = boxLeft + boxWidth;
+      let borderWidth = 1;
+
+      timebarStart.value = boxLeft;
+      timebarEnd.value = boxRight;
+      timebarWidth.value = boxWidth;
+      pointerWidth.value = boxWidth - borderWidth;
+
+      let TbarSize = {
+        boxLeft: boxLeft,
+        boxWidth: boxWidth,
+        boxRight: boxRight,
+        borderWidth: borderWidth,
+      }
+      res(TbarSize);
+    })
+  }
   // 游標移動處理事件
-  function movetimepointer(){
+  async function movetimepointer(){
+    // console.log('movetimepointer');
     let div=document.getElementById('timepointer');
     let timebar=document.getElementById('timebar');
     const parentXY = getPosition(timebar);
-    
-    let boxLeft = parentXY.x;
-    let boxWidth = timebar.offsetWidth;
-    let boxRight = boxLeft + boxWidth;
-    let borderWidth = 1;
-
-    timebarStart.value = boxLeft;
-    timebarEnd.value = boxRight;
-    timebarWidth.value = boxWidth;
-    pointerWidth.value = boxWidth - borderWidth;
-
+    let tbarSize = await getTBarSize();
     if (!div) {
       return;
     }
@@ -118,18 +147,30 @@ getchecktoken().then(res=>{
     mouseX.value = intX;
     let intY=window.event.clientY;
     mouseY.value = intY;
-    
-    // 要扣除右邊的邊框寬度
-    if( intX < boxLeft){
-      div.style.left = "0px";
-    }else if(intX > (boxRight)){
-      div.style.left= (boxWidth - borderWidth) +"px";
-    }else{
-      div.style.left=(intX-boxLeft)+"px";
+
+    if(!intX){
+      intX = 0;
     }
+    // 計算游標位置，要扣除右邊的邊框寬度
+    if( intX < tbarSize.boxLeft){
+      div.style.left = "0px";
+    }else if(intX > (tbarSize.boxRight)){
+      div.style.left= (tbarSize.boxWidth - tbarSize.borderWidth) +"px";
+    }else{
+      div.style.left=(intX-tbarSize.boxLeft)+"px";
+    }
+    // 顯示游標座標
     const pointerXY = getPosition(div);
     pointerX.value = pointerXY.x;
     pointerY.value = pointerXY.y;
+
+    // 將座標轉換成日期
+    // 起始日timebarFirstDateNum 起始座標timebarStart+1為起始日
+    // 結束日timebarLastDateNum 結束座標timebarEnd為結束日
+    // 目前座標pointerX
+    let nowDateNum = parseInt((pointerX.value - (timebarStart.value + 1)) / pointerWidth.value * (timebarLastDateNum.value - timebarFirstDateNum.value) + timebarFirstDateNum.value); //與起始距離
+    timebarPtDateNum.value = nowDateNum;
+    timebarPtDateStr.value = toLocalDateString(new Date(nowDateNum));
   }
   // 取得物件之螢幕座標
   function getPosition (element) {
@@ -146,40 +187,178 @@ getchecktoken().then(res=>{
   // 設定初始時間軸起始點
   function initFirstDate(){
     let nowDate = new Date();
-    let firstDateNum = Date.UTC(nowDate.getFullYear(),0,1);
-    timebarFirstDateNum.value = firstDateNum;
-    timebarFirstDateStr.value = new Date(firstDateNum).toISOString().split('T')[0];
+    // console.log('nowDate',nowDate);
+    let firstDateObj = new Date(nowDate.getFullYear(),0,1);
+    // console.log('firstDateObj',firstDateObj);
+    timebarFirstDateNum.value = firstDateObj.valueOf();
+    timebarFirstDateStr.value = toLocalDateString(firstDateObj);
+    
+    // 設定結束日
+    setlastDate();
 
+    getTBarSize().then(res=>{
+      buildTimeStep();
+    });
   }
+  // 設定結束日期
   function setlastDate(){
     let type = timebarType.value;
     let firstDate = new Date(timebarFirstDateNum.value);
     let lastDate;
+    let lastDateYY;
+    let lastDateMM;
+    let lastDateFD;
+    let lastDateDD;
 
     if(type===0){
-      // 以年顯示
-      lastDate = Date.UTC(firstDate.getFullYear(),11,31);
+      // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
+      lastDateYY = firstDate.getFullYear();
+      lastDateMM = firstDate.getMonth() + 11; // 顯示增加11個月
+      lastDateFD = new Date(lastDateYY,lastDateMM,1); // 取得結束月的第1天
+      // console.log('lastDateFD',lastDateFD);
+      lastDateDD = mounthDays[((lastDateFD.getFullYear() % 4)===0)?0:1][lastDateFD.getMonth()]; // 取得結束月的最後1天
+      lastDate = new Date(lastDateFD.getFullYear(),lastDateFD.getMonth(),lastDateDD); // 以UTC建立避免時區問題
     }else if(type===1){
-      // 以季顯示
+      // 以季顯示，內部顯示3個月，以1個月移動 
     }else if(type===2){
-      // 以月顯示
+      // 以月顯示，內部顯示為日，以1個日移動
     }else if(type===3){
       // 以週顯示
     }
-    timebarLastDateNum.value = lastDate;
-    timebarLastDateStr.value = new Date(lastDate).toISOString().split('T')[0];
+    timebarLastDateNum.value = lastDate.valueOf();
+    timebarLastDateStr.value = toLocalDateString(lastDate);
+  }
+  // 轉換日期文字
+  function toLocalDateString(dateobj){
+    return dateobj.getFullYear() + '-' + (dateobj.getMonth()+1).toString().padStart(2, '0') + '-' + dateobj.getDate().toString().padStart(2, '0');
+  }
+  // 前一個時間
+  function preTBar(){
+    // console.log('preTBar');
+    let type = timebarType.value;
+    let nowFD = new Date(timebarFirstDateNum.value);
+    let nowFD_Y = nowFD.getFullYear();
+    let nowFD_M = nowFD.getMonth();
+    let nowFD_D = nowFD.getDate();
+
+    let updateFD_Y;
+    let updateFD_M;
+    let updateFD_D;
+
+    let firstDateObj;
+
+    if(type===0){
+      // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
+      updateFD_Y = nowFD_Y;
+      updateFD_M = nowFD_M - 3;
+      updateFD_D = nowFD_D;
+      firstDateObj = new Date(updateFD_Y,updateFD_M,updateFD_D);
+    }else if(type===1){
+      // 以季顯示，內部顯示3個月，以1個月移動 
+    }else if(type===2){
+      // 以月顯示，內部顯示為日，以1個日移動
+    }else if(type===3){
+      // 以週顯示
+    }
+    timebarFirstDateNum.value = firstDateObj.valueOf();
+    timebarFirstDateStr.value = toLocalDateString(firstDateObj);
+    setlastDate();
+  }
+  // 後一個時間
+  function nextTBar(){
+    // console.log('nextTBar');
+    let type = timebarType.value;
+    let nowFD = new Date(timebarFirstDateNum.value);
+    let nowFD_Y = nowFD.getFullYear();
+    let nowFD_M = nowFD.getMonth();
+    let nowFD_D = nowFD.getDate();
+
+    let updateFD_Y;
+    let updateFD_M;
+    let updateFD_D;
+
+    let firstDateObj;
+
+    if(type===0){
+      // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
+      updateFD_Y = nowFD_Y;
+      updateFD_M = nowFD_M + 3;
+      updateFD_D = nowFD_D;
+      firstDateObj = new Date(updateFD_Y,updateFD_M,updateFD_D);
+    }else if(type===1){
+      // 以季顯示，內部顯示3個月，以1個月移動 
+    }else if(type===2){
+      // 以月顯示，內部顯示為日，以1個日移動
+    }else if(type===3){
+      // 以週顯示
+    }
+    timebarFirstDateNum.value = firstDateObj.valueOf();
+    timebarFirstDateStr.value = toLocalDateString(firstDateObj);
+    setlastDate();
+  }
+  // 創建時間軸刻度
+  function buildTimeStep(){
+    let type = timebarType.value;
+    let firstDateObj = new Date(timebarFirstDateNum.value);
+    let lastDateObj = new Date(timebarLastDateNum.value);
+    let tBarWidth = timebarWidth.value
+    let tBarList = [];
+    let sumWidth = 0;
+    let tBarTotalDays = 0;
+
+    if(type===0){
+      // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
+      let totalStep = 12;
+      for(let i=0;i<totalStep;i++){
+        let tempY = firstDateObj.getFullYear();
+        let tempM = firstDateObj.getMonth();
+        let tempD = firstDateObj.getDate();
+        let tempDateObj = new Date(tempY,tempM+i,tempD);
+        let isLeapY = (tempDateObj.getFullYear() % 4 === 0)?0:1;
+
+        if(isLeapY===0){
+          // 閏年
+          tBarTotalDays = 366;
+        }else{
+          tBarTotalDays = 365;
+        }
+
+        let thisDays = mounthDays[isLeapY][tempDateObj.getMonth()];
+        let thisWidth;
+
+        if(i===(totalStep-1)){
+          thisWidth = tBarWidth - sumWidth;
+        }else{
+          thisWidth = parseInt(thisDays / tBarTotalDays * tBarWidth);
+          sumWidth = sumWidth + thisWidth;
+        }
+
+        tBarList.push({
+          label: (tempDateObj.getMonth()+1) + '月',
+          width: thisWidth + 'px'
+        })
+        console.log(tBarList)
+        tbarItem.value = tBarList;
+      }
+    }else if(type===1){
+      // 以季顯示，內部顯示3個月，以1個月移動 
+    }else if(type===2){
+      // 以月顯示，內部顯示為日，以1個日移動
+    }else if(type===3){
+      // 以週顯示
+    }
+
+
+
   }
 //#endregion 時間軸==========End
 
 onMounted(()=>{
+  window.onresize = movetimepointer;
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
-  new Promise((res,rej)=>{
-    res(initFirstDate());
-  }).then(res=>{
-    setlastDate();
-  })
+  initFirstDate();
   
 });
 
@@ -198,16 +377,27 @@ onMounted(()=>{
             <!-- 左上 案件操作 固定寬度 -->
             <div style="width: 12rem;" class="h-100 border-end">
               案件操作
+              <div>{{timebarPtDateStr}}</div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
             <div style="width: calc(100% - 12rem);" class="h-100">
               <!-- 上部 時間操作列 -->
-              <div class="h-50 border-bottom">
-                時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})
+              <div class="h-50 d-flex justify-content-between border-bottom">
+                <div class="d-flex">
+                  <div>{{timebarFirstDateStr}}</div>
+                  <MDBBtn size="sm" color="primary" @click.stop="preTBar">前</MDBBtn>
+                </div>
+                <div>
+                  時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})
+                </div>
+                <div class="d-flex">
+                  <MDBBtn size="sm" color="primary" @click.stop="nextTBar">後</MDBBtn>
+                  <div>{{timebarLastDateStr}}</div>
+                </div>
               </div>
               <!-- 下部 時間顯示列 -->
               <div id="timebar" style="position:relative ;" class="d-flex h-50">
-                <div v-for="x in 12" style="width: calc(100% / 12);" :class="(x===12)?'':'border-end'">{{ x }}</div>
+                <div v-for="(x,i) in tbarItem" :style="'width:' + x.width" :class="(i===(tbarItem.length-1))?'':'border-end'">{{ x.label }}</div>
                 <div id="timepointer" style="position: absolute;color: red;border-left: 1px solid red;" class="h-100"></div>
               </div>
             </div>
@@ -221,6 +411,7 @@ onMounted(()=>{
             <p>時間軸內部寬度：{{pointerWidth}}</p>
             <p>時間軸起始日(數)：{{timebarFirstDateNum}}，時間軸起始日(字)：{{timebarFirstDateStr}}</p>
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
+            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p>
             
           </div>
         </div>
