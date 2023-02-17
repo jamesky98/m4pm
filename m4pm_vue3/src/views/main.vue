@@ -76,6 +76,13 @@ getchecktoken().then(res=>{
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
 
+  // 版型參數
+  const rightToolWidth = ref(25); // 25rem
+  const leftCaseWidth = ref(12); // 12rem
+  const leftCaseHeight = ref(6); // 12rem
+  const topTimeToolH = ref(2.5); // 2rem
+  const topTBarHeight = ref(2.5); // 2rem
+
   // 時間軸參數
   const mouseX = ref("");
   const mouseY = ref("");
@@ -95,7 +102,15 @@ getchecktoken().then(res=>{
   const timebarPtDateStr = ref("");
 
   const timebarType = ref(0); // 0:年 1:季 2:月 3:週
+  // 矩陣第0行為閏年，第1行為非閏年
   const mounthDays = [[31,29,31,30,31,30,31,31,30,31,30,31],[31,28,31,30,31,30,31,31,30,31,30,31]]; // 各月份日數
+  // 0:年(顯示12個月) 1:季(顯示3個月) 2:月(顯示該月天數) 3:週
+  const tStep = computed(()=>{
+    let dateobj = new Date(timebarFirstDateNum);
+    let isLeapY = (dateobj.getFullYear() % 4===0)?0:1;
+    let mdays = mounthDays[isLeapY][dateobj.getMonth];
+    return [12, 3, mdays]
+  });
   const tbarDOM = ref();
   const tbarPointer = ref();
   const tbarItem = ref([]);
@@ -136,10 +151,6 @@ getchecktoken().then(res=>{
   async function movetimepointer(){
     // console.log('movetimepointer');
     let div=document.getElementById('timepointer');
-    let div2=document.getElementById('timepointer2');
-    let timebar=document.getElementById('timebar');
-    let caselistbox=document.getElementById('caselistbox');
-    const parentXY = getPosition(caselistbox);
     let tbarSize = await getTBarSize();
     if (!div) {
       return;
@@ -156,13 +167,10 @@ getchecktoken().then(res=>{
     let parentBase = tbarSize.boxLeft;
     if( intX < tbarSize.boxLeft){
       div.style.left = "0px";
-      div2.style.left = "0px";
     }else if(intX > (tbarSize.boxRight-tbarSize.borderWidth)){
       div.style.left= (tbarSize.boxWidth) +"px";
-      div2.style.left= (tbarSize.boxWidth) +"px";
     }else{
       div.style.left=(intX-tbarSize.boxLeft)+"px";
-      div2.style.left=(intX-tbarSize.boxLeft)+"px";
     }
     // 顯示游標座標
     const pointerXY = getPosition(div);
@@ -217,10 +225,11 @@ getchecktoken().then(res=>{
     let lastDateFD;
     let lastDateDD;
 
+    let totalStep = tStep.value[type];
     if(type===0){
       // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
       lastDateYY = firstDate.getFullYear();
-      lastDateMM = firstDate.getMonth() + 11; // 顯示增加11個月
+      lastDateMM = firstDate.getMonth() + totalStep -1; // 顯示增加11個月
       lastDateFD = new Date(lastDateYY,lastDateMM,1); // 取得結束月的第1天
       // console.log('lastDateFD',lastDateFD);
       lastDateDD = mounthDays[((lastDateFD.getFullYear() % 4)===0)?0:1][lastDateFD.getMonth()]; // 取得結束月的最後1天
@@ -315,9 +324,9 @@ getchecktoken().then(res=>{
     let sumWidth = 0;
     let tBarTotalDays = 0;
 
+    let totalStep = tStep.value[type];
     if(type===0){
       // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
-      let totalStep = 12;
       for(let i=0;i<totalStep;i++){
         let tempY = firstDateObj.getFullYear();
         let tempM = firstDateObj.getMonth();
@@ -362,11 +371,23 @@ getchecktoken().then(res=>{
       // 以週顯示
     }
     // console.log(tBarList)
+    // 標註今日位置
+    let divNow=document.getElementById('timepointerNow');
+    let toDayNum = new Date().valueOf();
+    if(toDayNum>=timebarFirstDateNum.value && toDayNum<=timebarLastDateNum.value){
+      divNow.style.display = 'block';
+      let leftNow = (toDayNum - timebarFirstDateNum.value) / (timebarLastDateNum.value - timebarFirstDateNum.value) * timebarWidth.value;
+      divNow.style.left = leftNow + 'px'
+    }else{
+      // 隱藏標註線
+      divNow.style.display = 'none';
+    }
+    
 
   }
 
   function tbarStyle(index){
-    let classStr='h-100 tbarstep';
+    let classStr='d-flex align-items-center h-100 tbarstep';
     let tBarList = tbarItem.value;
     if(index!==0){
       classStr = classStr + ' border-start';
@@ -398,40 +419,47 @@ onMounted(()=>{
       <!-- 主體 -->
       <div style="height: calc(100% - 6.5em);" class="w-100 p-0 d-flex overflow-auto">
         <!-- 左側 顯示欄 變動寬度 -->
-        <div style="width: calc(100% - 25rem);" class="h-100 border">
+        <div :style="'position: relative;width: calc(100% - ' + rightToolWidth + 'rem);'" class="h-100 border">
           <!-- 上方 固定功能列 -->
-          <div style="height: 4rem;" class="w-100 d-flex">
+          <div :style="'height: ' + (topTimeToolH + topTBarHeight) + 'rem;'" class="w-100 d-flex">
             <!-- 左上 案件操作 固定寬度 -->
-            <div style="width: 12rem;" class="h-100 border-end">
-              案件操作
-              <div>{{timebarPtDateStr}}</div>
+            <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 border-end">
+              <div :style="'height: '+ topTimeToolH +'rem;'" class="border-bottom">
+                目前案件
+              </div>
+              <div :style="'height: '+ topTBarHeight +'rem;'">
+                案件操作
+              </div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
-            <div style="width: calc(100% - 12rem);" class="h-100">
-              <!-- 上部 時間操作列 -->
-              <div class="h-50 d-flex justify-content-between border-bottom overflow-hidden">
-                <div class="d-flex">
+            <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem);'" class="h-100">
+              <div :style="'height: ' + topTimeToolH + 'rem;'" class="d-flex justify-content-between border-bottom overflow-hidden">
+                <div class="d-flex align-items-center">
                   <div>{{timebarFirstDateStr}}</div>
-                  <MDBBtn size="sm" color="primary" @click.stop="preTBar">前</MDBBtn>
+                  <div><MDBBtn size="sm" color="primary" @click.stop="preTBar">前</MDBBtn></div>
+                  
                 </div>
-                <div>
-                  時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})
+                <div class="d-flex align-items-center">
+                  {{timebarPtDateStr}}
                 </div>
-                <div class="d-flex">
-                  <MDBBtn size="sm" color="primary" @click.stop="nextTBar">後</MDBBtn>
+                <div class="d-flex align-items-center">
+                  <div><MDBBtn size="sm" color="primary" @click.stop="nextTBar">後</MDBBtn></div>
                   <div>{{timebarLastDateStr}}</div>
                 </div>
-              </div>
-              <!-- 下部 時間顯示列 -->
-              <div id="timebar" style="position:relative ;" class="h-50">
-                <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
-                <div id="timepointer" :style="'position: absolute;color: red;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100"></div>
               </div>
             </div>
           </div>
           <!-- 下方 浮動案件列表 -->
-          <div id="caselistbox" style="position: relative; height: calc(100% - 4rem);" class="w-100 border-top">
-            <p>下方 浮動案件列表</p>
+          <div id="caselistbox" :style="'position: relative; height: calc(100% - ' + topTimeToolH + topTBarHeight + 'rem);'" class="w-100 border-top">
+            <div :style="'height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 border">
+              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="border-end">
+                案件名稱
+              </div>
+              <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem)'">
+                案件內容
+              </div>
+            </div>
+            <!-- <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
             <p>時間軸終點：{{timebarEnd}}</p>
@@ -439,15 +467,22 @@ onMounted(()=>{
             <p>時間軸內部寬度：{{pointerWidth}}</p>
             <p>時間軸起始日(數)：{{timebarFirstDateNum}}，時間軸起始日(字)：{{timebarFirstDateStr}}</p>
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
-            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p>
-            <div :style="'position:absolute;top:0; left:12rem ; width: calc(100% - 12rem)'" class="h-100">
-              <div id="timepointer2" :style="'position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p> -->
+          </div>
+          <!-- 時間軸 -->
+          <div id="timebar" class="border-start" :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'">
+            <!-- 時間軸刻度 -->
+            <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'">
+              <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
             </div>
+            <!-- 時間軸游標空間 -->
+            <div id="timepointerNow" :style="'position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            <div id="timepointer" :style="'position: absolute;top:0;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100"></div>
             
           </div>
         </div>
         <!-- 右側 功能欄 固定寬度 -->
-        <div style="width: 25rem;" class="h-100 border">
+        <div :style="'width: '+ rightToolWidth +'rem;'" class="h-100 border">
           右側功能欄
         </div>
       </div>
