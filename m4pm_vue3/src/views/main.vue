@@ -85,7 +85,7 @@ getchecktoken().then(res=>{
   const timebarEnd = ref("");
   
   const timebarWidth = ref("");
-  const pointerWidth = ref("");
+  const pointerWidth = ref(1); // 游標寬度
   const timebarFirstDateNum = ref("");
   const timebarLastDateNum = ref("");
   const timebarPtDateNum = ref("");
@@ -113,16 +113,15 @@ getchecktoken().then(res=>{
       tbarDOM.value = timebar;
 
       const parentXY = getPosition(timebar);
-
+      let borderWidth = pointerWidth.value;
       let boxLeft = parentXY.x;
-      let boxWidth = timebar.offsetWidth;
-      let boxRight = boxLeft + boxWidth;
-      let borderWidth = 1;
+      let boxWidth = timebar.offsetWidth - borderWidth;
+      let boxRight = boxLeft + timebar.offsetWidth;
+      
 
       timebarStart.value = boxLeft;
       timebarEnd.value = boxRight;
       timebarWidth.value = boxWidth;
-      pointerWidth.value = boxWidth - borderWidth;
 
       let TbarSize = {
         boxLeft: boxLeft,
@@ -137,8 +136,10 @@ getchecktoken().then(res=>{
   async function movetimepointer(){
     // console.log('movetimepointer');
     let div=document.getElementById('timepointer');
+    let div2=document.getElementById('timepointer2');
     let timebar=document.getElementById('timebar');
-    const parentXY = getPosition(timebar);
+    let caselistbox=document.getElementById('caselistbox');
+    const parentXY = getPosition(caselistbox);
     let tbarSize = await getTBarSize();
     if (!div) {
       return;
@@ -152,23 +153,28 @@ getchecktoken().then(res=>{
       intX = 0;
     }
     // 計算游標位置，要扣除右邊的邊框寬度
+    let parentBase = tbarSize.boxLeft;
     if( intX < tbarSize.boxLeft){
       div.style.left = "0px";
-    }else if(intX > (tbarSize.boxRight)){
-      div.style.left= (tbarSize.boxWidth - tbarSize.borderWidth) +"px";
+      div2.style.left = "0px";
+    }else if(intX > (tbarSize.boxRight-tbarSize.borderWidth)){
+      div.style.left= (tbarSize.boxWidth) +"px";
+      div2.style.left= (tbarSize.boxWidth) +"px";
     }else{
       div.style.left=(intX-tbarSize.boxLeft)+"px";
+      div2.style.left=(intX-tbarSize.boxLeft)+"px";
     }
     // 顯示游標座標
     const pointerXY = getPosition(div);
-    pointerX.value = pointerXY.x;
+    pointerX.value = pointerXY.x - pointerWidth.value;
     pointerY.value = pointerXY.y;
 
     // 將座標轉換成日期
     // 起始日timebarFirstDateNum 起始座標timebarStart+1為起始日
     // 結束日timebarLastDateNum 結束座標timebarEnd為結束日
     // 目前座標pointerX
-    let nowDateNum = parseInt((pointerX.value - (timebarStart.value + 1)) / pointerWidth.value * (timebarLastDateNum.value - timebarFirstDateNum.value) + timebarFirstDateNum.value); //與起始距離
+    let nowDateNum = parseInt((pointerX.value - timebarStart.value) / timebarWidth.value * (timebarLastDateNum.value - timebarFirstDateNum.value) + timebarFirstDateNum.value); //與起始距離
+    
     timebarPtDateNum.value = nowDateNum;
     timebarPtDateStr.value = toLocalDateString(new Date(nowDateNum));
   }
@@ -197,6 +203,7 @@ getchecktoken().then(res=>{
     setlastDate();
 
     getTBarSize().then(res=>{
+      // console.log('tbarSize',res)
       buildTimeStep();
     });
   }
@@ -263,6 +270,7 @@ getchecktoken().then(res=>{
     timebarFirstDateNum.value = firstDateObj.valueOf();
     timebarFirstDateStr.value = toLocalDateString(firstDateObj);
     setlastDate();
+    buildTimeStep();
   }
   // 後一個時間
   function nextTBar(){
@@ -295,6 +303,7 @@ getchecktoken().then(res=>{
     timebarFirstDateNum.value = firstDateObj.valueOf();
     timebarFirstDateStr.value = toLocalDateString(firstDateObj);
     setlastDate();
+    buildTimeStep();
   }
   // 創建時間軸刻度
   function buildTimeStep(){
@@ -316,12 +325,16 @@ getchecktoken().then(res=>{
         let tempDateObj = new Date(tempY,tempM+i,tempD);
         let isLeapY = (tempDateObj.getFullYear() % 4 === 0)?0:1;
 
+        //  日期間格比總日數少1，第1天位置在0不是1，所以-1
         if(isLeapY===0){
           // 閏年
-          tBarTotalDays = 366;
-        }else{
           tBarTotalDays = 365;
+        }else{
+          tBarTotalDays = 364;
         }
+        // 計算每個left
+        // (目前日-起始日)/總間隔*總寬度
+        let left = (tempDateObj.valueOf() - timebarFirstDateNum.value)/(tBarTotalDays*24*60*60*1000) * timebarWidth.value;
 
         let thisDays = mounthDays[isLeapY][tempDateObj.getMonth()];
         let thisWidth;
@@ -329,15 +342,16 @@ getchecktoken().then(res=>{
         if(i===(totalStep-1)){
           thisWidth = tBarWidth - sumWidth;
         }else{
-          thisWidth = parseInt(thisDays / tBarTotalDays * tBarWidth);
-          sumWidth = sumWidth + thisWidth;
+          thisWidth = (thisDays / tBarTotalDays * tBarWidth);
         }
+        sumWidth = sumWidth + thisWidth;
 
         tBarList.push({
+          left: left + 'px',
+          mounth: tempDateObj.getMonth()+1,
           label: (tempDateObj.getMonth()+1) + '月',
           width: thisWidth + 'px'
         })
-        console.log(tBarList)
         tbarItem.value = tBarList;
       }
     }else if(type===1){
@@ -347,14 +361,27 @@ getchecktoken().then(res=>{
     }else if(type===3){
       // 以週顯示
     }
+    // console.log(tBarList)
 
+  }
 
+  function tbarStyle(index){
+    let classStr='h-100 tbarstep';
+    let tBarList = tbarItem.value;
+    if(index!==0){
+      classStr = classStr + ' border-start';
+    }
 
+    if(tBarList[index].mounth===1){
+      classStr = classStr + ' jan-mon'
+    }
+    return classStr
   }
 //#endregion 時間軸==========End
 
 onMounted(()=>{
-  window.onresize = movetimepointer;
+  window.addEventListener('resize',movetimepointer);
+  window.addEventListener('resize',buildTimeStep);
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
@@ -382,7 +409,7 @@ onMounted(()=>{
             <!-- 右上 時間控制 變動寬度 -->
             <div style="width: calc(100% - 12rem);" class="h-100">
               <!-- 上部 時間操作列 -->
-              <div class="h-50 d-flex justify-content-between border-bottom">
+              <div class="h-50 d-flex justify-content-between border-bottom overflow-hidden">
                 <div class="d-flex">
                   <div>{{timebarFirstDateStr}}</div>
                   <MDBBtn size="sm" color="primary" @click.stop="preTBar">前</MDBBtn>
@@ -396,22 +423,26 @@ onMounted(()=>{
                 </div>
               </div>
               <!-- 下部 時間顯示列 -->
-              <div id="timebar" style="position:relative ;" class="d-flex h-50">
-                <div v-for="(x,i) in tbarItem" :style="'width:' + x.width" :class="(i===(tbarItem.length-1))?'':'border-end'">{{ x.label }}</div>
-                <div id="timepointer" style="position: absolute;color: red;border-left: 1px solid red;" class="h-100"></div>
+              <div id="timebar" style="position:relative ;" class="h-50">
+                <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
+                <div id="timepointer" :style="'position: absolute;color: red;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100"></div>
               </div>
             </div>
           </div>
           <!-- 下方 浮動案件列表 -->
-          <div style="height: calc(100% - 4rem);" class="w-100 border">
+          <div id="caselistbox" style="position: relative; height: calc(100% - 4rem);" class="w-100 border-top">
             <p>下方 浮動案件列表</p>
+            <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
             <p>時間軸終點：{{timebarEnd}}</p>
-            <p>時間軸物件寬度：{{timebarWidth}}</p>
+            <p>時間軸物件寬度(timebarWidth)：{{timebarWidth}}</p>
             <p>時間軸內部寬度：{{pointerWidth}}</p>
             <p>時間軸起始日(數)：{{timebarFirstDateNum}}，時間軸起始日(字)：{{timebarFirstDateStr}}</p>
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
             <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p>
+            <div :style="'position:absolute;top:0; left:12rem ; width: calc(100% - 12rem)'" class="h-100">
+              <div id="timepointer2" :style="'position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            </div>
             
           </div>
         </div>
@@ -425,3 +456,9 @@ onMounted(()=>{
     </MDBRow>
   </MDBContainer>
 </template>
+<style>
+.jan-mon{
+  background-color: #9f9f9f;
+  color: white;
+}
+</style>

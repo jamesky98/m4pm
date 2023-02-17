@@ -12,7 +12,8 @@ type Query {
 }
 
 type Mutation {
-  # user login ================
+  # ================
+  # user login
     allusers: [User!]!
     getUserById(user_id: Int!): User
     getUserByName(user_name: String): User
@@ -37,7 +38,6 @@ type Mutation {
     chkUserByName(user_name: String): User
     changePASSWord(user_id: Int!, oldpass: String!, newpass: String!, chkpass: String!, enforce: Boolean): String
   # ================
-
 }
 
 type AuthPayload {

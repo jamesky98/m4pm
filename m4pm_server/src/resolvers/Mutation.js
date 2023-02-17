@@ -9,11 +9,16 @@ import { finished } from "stream/promises";
 import fs from "fs";
 import fsPromises from 'node:fs/promises';
 import path from "path";
+import https from "https";
 import { fileURLToPath } from "url";
+import jStat from "jstat";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
 import { error } from "console";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const PUBLIC_PATH = '../' + process.env.PUBLIC_PATH;
 
 /**
@@ -24,10 +29,7 @@ async function allusers(parent, args, context) {
   if (chkUserId(context)){
   return await context.prisma.user.findMany();}
 }
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
+
 async function getUserById(parent, args, context) {
   if (chkUserId(context)){
   const where = { user_id: args.user_id };
@@ -35,12 +37,10 @@ async function getUserById(parent, args, context) {
   const result = await context.prisma.user.findUnique({
     where,
   });
+
   return result;}
 }
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
+
 async function getUserByName(parent, args, context) {
   if (chkUserId(context)){
     if (args.user_name){
@@ -60,10 +60,7 @@ async function getUserByName(parent, args, context) {
 async function checktoken(parent, args, context) {
   return chkUserId(context);;
 }
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
+
 async function signup(parent, args, context, info) {
   // 1
   const password = await bcrypt.hash(args.user_password, 10);
@@ -93,10 +90,6 @@ async function signup(parent, args, context, info) {
   };
 }
 
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
 async function login(parent, args, context, info) {
   // 1
   const user = await context.prisma.user.findUnique({
@@ -132,10 +125,6 @@ async function login(parent, args, context, info) {
   };
 }
 
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
 async function updateUser(parent, args, context) {
   if (chkUserId(context)){
     let tempArgs = { ...args };
@@ -164,20 +153,16 @@ async function delUser(parent, args, context) {
   }
 }
 
-/**
- * @param {any} parent
- * @param {{ prisma: Prisma }} context
- */
 async function chkUserByName(parent, args, context) {
-    const where = { user_name: args.user_name };
-    const result = await context.prisma.user.findUnique({
-      where,
-      select: {
-        user_name: true,
-      },
-    });
+  const where = { user_name: args.user_name };
+  const result = await context.prisma.user.findUnique({
+    where,
+    select: {
+      user_name: true,
+    },
+  });
 
-    return result;
+  return result;
 }
 
 async function changePASSWord(parent, args, context) {
@@ -213,14 +198,13 @@ async function changePASSWord(parent, args, context) {
 }
 
 export default {
-  allusers,
-  getUserById,
-  getUserByName,
   checktoken,
   signup,
   login,
   updateUser,
   delUser,
   chkUserByName,
-  changePASSWord,
+  allusers,
+  getUserById,
+  getUserByName,
 };
