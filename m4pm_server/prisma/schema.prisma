@@ -7,6 +7,7 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
 model user {
   user_id           Int       @id @default(autoincrement())
   user_name         String    @unique(map: "user_name_UNIQUE") @db.VarChar(255)
@@ -17,4 +18,16 @@ model user {
   active            Int       @default(0)
   role              Int       @default(0)
   user_name2        String    @db.VarChar(255)
+}
+
+model m4case {
+  id           Int      @id @unique(map: "id_UNIQUE") @default(autoincrement())
+  code         String   @db.VarChar(100)
+  active       Int      @default(0)
+  data         Json?
+  parent_id    Int?
+  m4case       m4case?  @relation("m4caseTom4case", fields: [parent_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "parenlink")
+  other_m4case m4case[] @relation("m4caseTom4case")
+
+  @@index([parent_id], map: "parenlink_idx")
 }

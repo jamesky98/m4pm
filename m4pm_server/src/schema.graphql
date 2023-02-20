@@ -8,15 +8,15 @@ type File {
 }
 
 type Query {
-  getNowUser: User
+  getNowUser: user
 }
 
 type Mutation {
   # ================
   # user login
-    allusers: [User!]!
-    getUserById(user_id: Int!): User
-    getUserByName(user_name: String): User
+    allusers: [user!]!
+    getUserById(user_id: Int!): user
+    getUserByName(user_name: String): user
     checktoken: Boolean
     signup(
       user_name: String!
@@ -33,19 +33,31 @@ type Mutation {
       active: Int
       role: Int
       user_name2: String
-    ): User
-    delUser(user_id: Int!): User
-    chkUserByName(user_name: String): User
+    ): user
+    delUser(user_id: Int!): user
+    chkUserByName(user_name: String): user
     changePASSWord(user_id: Int!, oldpass: String!, newpass: String!, chkpass: String!, enforce: Boolean): String
+  # ================
+  # ================
+  # m4case
+    getAllCase: [m4case]
+    getCaseById(id:Int!): m4case
+    saveCaseById(
+      id: Int! 
+      code: String!
+      active: Int
+      data: JSONObject
+      parent_id: Int
+    ): m4case
   # ================
 }
 
 type AuthPayload {
   token: String
-  user: User
+  user: user
 }
 
-type User {
+type user {
   user_id: ID!
   user_name: String!
   user_mail: String!
@@ -54,4 +66,14 @@ type User {
   role: Int
   user_name2: String!
   user_updated_time: Date
+}
+
+type m4case {
+  id: ID!
+  code: String!
+  active: Int
+  data: JSON
+  parent_id: Int
+  m4case: m4case
+  other_m4case: [m4case]
 }

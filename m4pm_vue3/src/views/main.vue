@@ -27,13 +27,16 @@ import {
   MDBTabPane,
   MDBSwitch,
 } from 'mdb-vue-ui-kit';
-import { ref, onMounted, provide, inject, watch } from "vue";
+import { ref, onMounted, provide, inject, watch, reactive, toRaw } from "vue";
 import { computed } from "@vue/reactivity";
 
 // 判斷token狀況
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import UsersGQL from "../graphql/Users";
+import CaseGQL from "../graphql/Case";
 import { errorHandle, logIn, logOut, toTWDate } from '../methods/User';
+import jQuery from "jquery";
+Object.assign(window, { $: jQuery, jQuery });
 
 const { mutate: getchecktoken } = useMutation(UsersGQL.CHECKTOKEN);
 getchecktoken().then(res=>{
@@ -111,17 +114,33 @@ getchecktoken().then(res=>{
   const timebarStepList = ref(['年','季','月','週']); // 0:年 1:季 2:月 3:週
   // 矩陣第0行為閏年，第1行為非閏年
   const mounthDays = [[31,29,31,30,31,30,31,31,30,31,30,31],[31,28,31,30,31,30,31,31,30,31,30,31]]; // 各月份日數
+  const weekDays = ['日','一','二','三','四','五','六']
   // 0:年(顯示12個月) 1:季(顯示3個月) 2:月(顯示該月天數) 3:週
   const tStep = computed(()=>{
-    let dateobj = new Date(timebarFirstDateNum.value);
-    let isLeapY = (dateobj.getFullYear() % 4===0)?0:1;
-    let mdays = mounthDays[isLeapY][dateobj.getMonth()];
-    return [12, 3, mdays]
+    // let dateobj = new Date(timebarFirstDateNum.value);
+    // let isLeapY = (dateobj.getFullYear() % 4===0)?0:1;
+    // let mdays = mounthDays[isLeapY][dateobj.getMonth()];
+    return [12, 3, 31]
   });
 
   const tbarDOM = ref();
   const tbarPointer = ref();
   const tbarItem = ref([]);
+
+  var rtime;
+  var timeout = false;
+  var delta = 200;
+
+  // Case參數==============Start
+  const allCases = ref([]);
+  const nowCaseID = ref("");
+  const nowCaseCode = ref("");
+  const nowCaseActive = ref(1);
+  const nowCaseData = reactive({});
+  const nowCaseParentId = ref("");
+  const nowCaseOperator = ref("");
+  const nowCaseName = ref("");
+  // Case參數==============End
 
 //#endregion 參數==========End
 
@@ -191,10 +210,11 @@ getchecktoken().then(res=>{
     // 起始日timebarFirstDateNum 起始座標timebarStart+1為起始日
     // 結束日timebarLastDateNum 結束座標timebarEnd為結束日
     // 目前座標pointerX
+
     let nowDateNum = parseInt((pointerX.value - timebarStart.value) / timebarWidth.value * (timebarLastDateNum.value - timebarFirstDateNum.value) + timebarFirstDateNum.value); //與起始距離
     
     timebarPtDateNum.value = nowDateNum;
-    timebarPtDateStr.value = toLocalDateString(new Date(nowDateNum));
+    timebarPtDateStr.value = toLocalDateString(new Date(nowDateNum))+ '(' +weekDays[new Date(nowDateNum).getDay()]+ ')';
   }
   // 取得物件之螢幕座標
   function getPosition (element) {
@@ -243,13 +263,15 @@ getchecktoken().then(res=>{
       lastDateFD = new Date(lastDateYY,lastDateMM,1); // 取得結束月的第1天
       // console.log('lastDateFD',lastDateFD);
       lastDateDD = mounthDays[((lastDateFD.getFullYear() % 4)===0)?0:1][lastDateFD.getMonth()]; // 取得結束月的最後1天
-      lastDate = new Date(lastDateFD.getFullYear(),lastDateFD.getMonth(),lastDateDD); // 以UTC建立避免時區問題
+      lastDate = new Date(lastDateFD.getFullYear(),lastDateFD.getMonth(),lastDateDD,23,59,59); // 以UTC建立避免時區問題
+      // console.log('lastDate',lastDate)
     }else if(type===2){
       // 以月顯示，內部顯示為日，以1個日移動
       lastDateYY = firstDate.getFullYear();
       lastDateMM = firstDate.getMonth();
-      lastDateDD = mounthDays[((lastDateYY % 4)===0)?0:1][lastDateMM]; // 取得結束月的最後1天
-      lastDate = new Date(lastDateYY,lastDateMM,lastDateDD); // 以UTC建立避免時區問題
+      lastDateDD = firstDate.getDate()+30; // 取得結束月的最後1天
+      lastDate = new Date(lastDateYY,lastDateMM,lastDateDD,23,59,59); // 以UTC建立避免時區問題
+      // console.log('lastDate',lastDate)
     }else if(type===3){
       // 以週顯示
     }
@@ -340,13 +362,13 @@ getchecktoken().then(res=>{
     let tBarList = [];
     let sumWidth = 0;
     let passTime = timebarLastDateNum.value - timebarFirstDateNum.value;
-    let tBarTotalDays = passTime / 1000 / 60 / 60 / 24;
+    let tBarTotalDays = (passTime / 1000 / 60 / 60 / 24);
     let tempDateObj;
     let stepNum;
     let stepUnit;
 
     let totalStep = tStep.value[type];
-    console.log('totalStep',totalStep)
+    // console.log('totalStep',totalStep)
     for(let i=0;i<totalStep;i++){
       if(type<2){
         // 以年顯示，內部顯示12個月，以3個月移動，結束為該年最後一日
@@ -358,7 +380,7 @@ getchecktoken().then(res=>{
         // 以月顯示，內部顯示為日，以1個日移動
         tempDateObj = new Date(tempY,tempM,tempD+i);
         stepNum = tempDateObj.getDate();
-        stepUnit = '日';
+        stepUnit = '';
       }else if(type===3){
         // 以週顯示
       }
@@ -369,6 +391,7 @@ getchecktoken().then(res=>{
       let left = (tempDateObj.valueOf() - timebarFirstDateNum.value)/(passTime) * tBarWidth;
 
       let thisWidth;
+      // console.log('tBarTotalDays',tBarTotalDays)
         if(i===(totalStep-1)){
           thisWidth = tBarWidth - sumWidth;
         }else{
@@ -389,11 +412,11 @@ getchecktoken().then(res=>{
       })
       tbarItem.value = tBarList;
     }
-    console.log(tBarList)
+    // console.log(tBarList)
     // 標註今日位置
     let divNow=document.getElementById('timepointerNow');
     let toDayNum = timebarToDayNum.value = new Date().valueOf();
-    timebarToDayStr.value = toLocalDateString(new Date(toDayNum));
+    timebarToDayStr.value = toLocalDateString(new Date(toDayNum))+ '(' +weekDays[new Date(toDayNum).getDay()]+ ')';
     if(toDayNum>=timebarFirstDateNum.value && toDayNum<=timebarLastDateNum.value){
       divNow.style.display = 'block';
       let leftNow = (toDayNum - timebarFirstDateNum.value) / (passTime) * tBarWidth;
@@ -416,12 +439,8 @@ getchecktoken().then(res=>{
       // 隱藏標註線
       div.style.display = 'none';
     }
-
-    
-    
-
   }
-
+  // 設定1月樣式
   function tbarStyle(index){
     let classStr='d-flex align-items-center h-100 tbarstep';
     let tBarList = tbarItem.value;
@@ -434,16 +453,139 @@ getchecktoken().then(res=>{
     }
     return classStr
   }
+  // 視窗小整大小
+  function resizeend() {
+    if (new Date() - rtime < delta) {
+      setTimeout(resizeend, delta);
+    } else {
+      timeout = false;
+      buildTimeStep();
+    }               
+  }
+  // 跳到今日
+  function goToDay(){
+    let toDayNum = timebarToDayNum.value;
+    let toDayObj = new Date(toDayNum);
+    let toDayY = toDayObj.getFullYear();
+    let toDayM = toDayObj.getMonth();
+    let toDayD = toDayObj.getDate();
+    let type = timebarType.value;
+    let firstDateObj;
+    // 設定起始日
+      if(type===0){
+        // 設定為該年第1日
+        firstDateObj = new Date(toDayY,0,1);
+      }else if(type===1){
+        // 設定為該1,4,7,10月第1日
+        toDayM = parseInt(toDayM/3)*3;
+        firstDateObj = new Date(toDayY,toDayM,1);
+      }else if(type===2){
+        // 設定為該月第1日
+        firstDateObj = new Date(toDayY,toDayM,1);
+      }else if(type===3){
 
+      }
+    timebarFirstDateNum.value = firstDateObj.valueOf();
+    timebarFirstDateStr.value = toLocalDateString(firstDateObj);
+    // 更新時間軸
+    updateTBar();
+  }
 //#endregion 時間軸==========End
 
+//#region 案件操作==========Start
+  // 查詢全案件
+  const { mutate: getAllCase, onDone: getAllCaseonDone, onError: getAllCaseonError } = useMutation(CaseGQL.GETALLCASE);
+  getAllCaseonDone(res => {
+    // 載入全部案件資料
+    console.log(res.data.getAllCase)
+  });
+  getAllCaseonError(e=>{errorHandle(e,infomsg,alert1)});
+
+  // 查詢目前案件
+  const { mutate: getCaseById, onDone: getCaseByIdonDone, onError: getCaseByIdonError } = useMutation(CaseGQL.GETCASEBYID);
+  getCaseByIdonDone(result => {
+    // 載入目前案件資料
+  });
+  getCaseByIdonError(e=>{errorHandle(e,infomsg,alert1)});
+  // 選擇案件按鈕事件
+  function getNowCaseBtn(id){
+    if(id){
+      getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
+        console.log('CaseById',res.data.getCaseById);
+        let getCase = res.data.getCaseById;
+        
+        nowCaseID.value = parseInt(getCase.id);
+        nowCaseCode.value = getCase.code;
+        nowCaseActive.value = (getCase.active)?true:false;
+        if(getCase.data){
+          nowCaseData.value = getCase.data;
+          if(getCase.data.base){
+            let getBase = getCase.data.base;
+            nowCaseOperator.value = (getBase.operator)?getBase.operator:'';
+          }
+        }
+        nowCaseParentId.value = getCase.parent_id;
+      });
+    }
+  }
+
+  // 儲存目前案件
+  const { mutate: saveCase, onDone: saveCaseonDone, onError: saveCaseonError } = useMutation(CaseGQL.SAVECASEBYID);
+  saveCaseonDone(result => {
+    // 載入目前案件資料
+  });
+  saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
+  // 儲存案件按鈕事件
+  function saveCaseBtn(){
+    saveCase({
+      saveCaseByIdId: (nowCaseID.value)?nowCaseID.value:-1,
+      code: (nowCaseCode.value)?nowCaseCode.value:null,
+      active: (nowCaseActive.value)?nowCaseActive.value:1,
+      data: (nowCaseData.value)?(nowCaseData.value):null,
+      parentId: (nowCaseParentId.value)?nowCaseParentId.value:null
+    })
+  }
+
+
+//#endregion 案件操作==========End
+
 onMounted(()=>{
+  // 視窗調整大小事件
   window.addEventListener('resize',movetimepointer);
   window.addEventListener('resize',buildTimeStep);
+  $(window).resize(function() {
+      rtime = new Date();
+      if (timeout === false) {
+          timeout = true;
+          setTimeout(resizeend, delta);
+      }
+  });
+
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
   initFirstDate();
+
+  getAllCase().then(res=>{
+    allCases.value = res.data.getAllCase;
+    if(allCases.value.length < 1){
+      // 無案件時
+      allCases.value.push(
+        {
+          id: -1,
+          code: '',
+          active: 1,
+          data: {
+            base: {
+              operator: ''
+            },
+            items: []
+          }
+        }
+      );
+    }
+    console.log('allCases',allCases.value);
+  });
   
 });
 
@@ -462,10 +604,12 @@ onMounted(()=>{
             <!-- 左上 案件操作 固定寬度 -->
             <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 border-end">
               <div :style="'height: '+ topTimeToolH +'rem;'" class="border-bottom">
-                目前案件
+                目前案件：{{nowCaseID}}-{{nowCaseCode}}
               </div>
-              <div :style="'height: '+ topTBarHeight +'rem;'">
-                案件操作
+              <div :style="'height: '+ topTBarHeight +'rem;'" class="d-flex">
+                <div><MDBBtn class="p-1" size="sm" color="primary" @click.stop="">＋</MDBBtn></div>
+                <div><MDBBtn class="p-1" size="sm" color="primary" @click.stop="">–</MDBBtn></div>
+                <div><MDBBtn :disabled="!nowCaseID" class="p-1" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
               </div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
@@ -482,6 +626,7 @@ onMounted(()=>{
                     <div class="align-items-center">游標：{{timebarPtDateStr}}</div>
                   </div>
                   <div style="position:absolute;top:0.25rem; right: 1rem">
+                    <MDBBtn size="sm" color="primary" @click.stop="goToDay()">今日</MDBBtn>
                     <MDBBtn size="sm" color="primary" @click.stop="changeTimeBarType()">{{timebarStepList[timebarType]}}</MDBBtn>
                     <MDBBtn size="sm" color="primary" @click.stop="isPointerFix=false">＋</MDBBtn>
                   </div>
@@ -495,14 +640,20 @@ onMounted(()=>{
           </div>
           <!-- 下方 浮動案件列表 -->
           <div id="caselistbox" :style="'position: relative; height: calc(100% - ' + topTimeToolH + topTBarHeight + 'rem);'" class="w-100 border-top">
-            <div :style="'height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 border">
-              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="border-end">
-                案件名稱
+            
+            <!-- 列表 -->
+            <div v-for="(x, i) in allCases" :style="'height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 border">
+              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="p-2 border-end" @click.stop="getNowCaseBtn(x.id)">
+                <MDBInput size="sm" type="text" label="案件名稱" v-model="x.code" />
+                <MDBInput size="sm" type="text" label="承辦人" v-model="x.data.base.operator" />
               </div>
               <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem)'">
                 案件內容
               </div>
             </div>
+
+
+
             <!-- <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
@@ -516,7 +667,7 @@ onMounted(()=>{
           <!-- 時間軸 -->
           <div id="timebar" class="border-start" :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'">
             <!-- 時間軸刻度 -->
-            <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'">
+            <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'" class="overflow-hidden">
               <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
             </div>
             <!-- 時間軸游標空間 -->

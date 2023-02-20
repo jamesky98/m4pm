@@ -197,6 +197,48 @@ async function changePASSWord(parent, args, context) {
   }
 }
 
+/**
+ * @param {any} parent
+ * @param {{ prisma: Prisma }} context
+ */
+async function getAllCase(parent, args, context) {
+  if (!chkUserId(context)){return}
+  const result = await context.prisma.m4case.findMany();
+
+  return result
+}
+
+/**
+ * @param {any} parent
+ * @param {{ prisma: Prisma }} context
+ */
+async function getCaseById(parent, args, context) {
+  if (!chkUserId(context)){return}
+  const result = await context.prisma.m4case.findUnique({
+    where: {id: args.id}
+  });
+
+  return result
+}
+
+/**
+ * @param {any} parent
+ * @param {{ prisma: Prisma }} context
+ */
+async function saveCaseById(parent, args, context) {
+  if (!chkUserId(context)){return}
+  let tempArgs = { ...args };
+  delete tempArgs.id;
+  const result = await context.prisma.m4case.upsert({
+    where: { id: args.id },
+    update: { ...tempArgs },
+    create: { ...tempArgs },
+  });
+
+  return result
+}
+
+
 export default {
   checktoken,
   signup,
@@ -207,4 +249,7 @@ export default {
   allusers,
   getUserById,
   getUserByName,
+  getAllCase,
+  getCaseById,
+  saveCaseById,
 };
