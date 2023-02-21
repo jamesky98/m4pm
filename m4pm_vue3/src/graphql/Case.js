@@ -5,20 +5,20 @@ const GETALLCASE = gql`
     getAllCase {
       id
       code
-      active
+      finished
       data
       parent_id
       m4case {
         id
         code
-        active
+        finished
         data
         parent_id
       }
       other_m4case {
         id
         code
-        active
+        finished
         data
         parent_id
       }
@@ -30,20 +30,20 @@ const GETCASEBYID = gql`
     getCaseById(id: $getCaseByIdId) {
       id
       code
-      active
+      finished
       data
       parent_id
       m4case {
         id
         code
-        active
+        finished
         data
         parent_id
       }
       other_m4case {
         id
         code
-        active
+        finished
         data
         parent_id
       }
@@ -55,14 +55,14 @@ const SAVECASEBYID = gql`
   mutation SaveCaseById(
     $saveCaseByIdId: Int!
     $code: String!
-    $active: Int
-    $data: JSON
+    $finished: Int
+    $data: JSONObject
     $parentId: Int
   ) {
     saveCaseById(
       id: $saveCaseByIdId
       code: $code
-      active: $active
+      finished: $finished
       data: $data
       parent_id: $parentId
     ) {

@@ -45,7 +45,7 @@ type Mutation {
     saveCaseById(
       id: Int! 
       code: String!
-      active: Int
+      finished: Int
       data: JSONObject
       parent_id: Int
     ): m4case
@@ -71,8 +71,8 @@ type user {
 type m4case {
   id: ID!
   code: String!
-  active: Int
-  data: JSON
+  finished: Int
+  data: JSONObject
   parent_id: Int
   m4case: m4case
   other_m4case: [m4case]

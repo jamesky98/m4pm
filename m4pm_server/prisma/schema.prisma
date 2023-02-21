@@ -23,7 +23,7 @@ model user {
 model m4case {
   id           Int      @id @unique(map: "id_UNIQUE") @default(autoincrement())
   code         String   @db.VarChar(100)
-  active       Int      @default(0)
+  finished     Int      @default(0)
   data         Json?
   parent_id    Int?
   m4case       m4case?  @relation("m4caseTom4case", fields: [parent_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "parenlink")

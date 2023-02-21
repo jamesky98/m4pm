@@ -10,6 +10,7 @@ import {
   MDBContainer,
   MDBSelect,
   MDBDatepicker,
+  MDBCheckbox,
   MDBBtn,
   MDBPopconfirm,
   MDBSpinner,
@@ -133,13 +134,24 @@ getchecktoken().then(res=>{
 
   // Case參數==============Start
   const allCases = ref([]);
-  const nowCaseID = ref("");
-  const nowCaseCode = ref("");
-  const nowCaseActive = ref(1);
-  const nowCaseData = reactive({});
-  const nowCaseParentId = ref("");
+  const newCase = {
+    id: '',
+    code: '',
+    finished: 0,
+    data: {
+      base: {},
+      items: [],
+    },
+    parent_id: null,
+  };
+  const nowCaseData = reactive({case: newCase});
   const nowCaseOperator = ref("");
-  const nowCaseName = ref("");
+  const nowCaseFinished = ref(false);
+  const nowCaseStartDateDOM = ref();
+  const nowCaseEnddateDOM = ref();
+  const nowCaseGuaranteeDOM = ref();
+  
+
   // Case參數==============End
 
 //#endregion 參數==========End
@@ -497,7 +509,7 @@ getchecktoken().then(res=>{
   const { mutate: getAllCase, onDone: getAllCaseonDone, onError: getAllCaseonError } = useMutation(CaseGQL.GETALLCASE);
   getAllCaseonDone(res => {
     // 載入全部案件資料
-    console.log(res.data.getAllCase)
+    // console.log(res.data.getAllCase)
   });
   getAllCaseonError(e=>{errorHandle(e,infomsg,alert1)});
 
@@ -507,24 +519,18 @@ getchecktoken().then(res=>{
     // 載入目前案件資料
   });
   getCaseByIdonError(e=>{errorHandle(e,infomsg,alert1)});
+
   // 選擇案件按鈕事件
-  function getNowCaseBtn(id){
+  function getNowCaseBtn(e,id){
     if(id){
+      $('.case-selected').removeClass('case-selected');
+      $('.casebox').has(e.target).children('.boxline').addClass('case-selected');
       getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
-        console.log('CaseById',res.data.getCaseById);
+        // console.log('CaseById',res.data.getCaseById);
         let getCase = res.data.getCaseById;
-        
-        nowCaseID.value = parseInt(getCase.id);
-        nowCaseCode.value = getCase.code;
-        nowCaseActive.value = (getCase.active)?true:false;
-        if(getCase.data){
-          nowCaseData.value = getCase.data;
-          if(getCase.data.base){
-            let getBase = getCase.data.base;
-            nowCaseOperator.value = (getBase.operator)?getBase.operator:'';
-          }
-        }
-        nowCaseParentId.value = getCase.parent_id;
+        nowCaseData.case = getCase;
+        nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
+        // console.log(nowCaseData.case);
       });
     }
   }
@@ -538,15 +544,32 @@ getchecktoken().then(res=>{
   // 儲存案件按鈕事件
   function saveCaseBtn(){
     saveCase({
-      saveCaseByIdId: (nowCaseID.value)?nowCaseID.value:-1,
-      code: (nowCaseCode.value)?nowCaseCode.value:null,
-      active: (nowCaseActive.value)?nowCaseActive.value:1,
-      data: (nowCaseData.value)?(nowCaseData.value):null,
-      parentId: (nowCaseParentId.value)?nowCaseParentId.value:null
+      saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
+      code: (nowCaseData.case.code)?nowCaseData.case.code:null,
+      active: (nowCaseData.case.active)?nowCaseData.case.active:1,
+      data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
+      parentId: (nowCaseData.case.parent_id)?nowCaseData.case.parent_id:null
+    }).then(res=>{
+      // 更新
+      updateAllCase();
     })
   }
-
-
+  // 更新總案件列表
+  function updateAllCase(){
+    getAllCase().then(res=>{
+      allCases.value = res.data.getAllCase;
+      if(allCases.value.length < 1){
+        // 無案件時
+        allCases.value.push(nowCaseData.value)
+      }
+      // console.log('allCases',allCases.value);
+    });
+  }
+  // 新增案件(清空案件基本資料)
+  function createNewCase(){
+    nowCaseData.case = newCase;
+    nowCaseData.case.id = -1;
+  }
 //#endregion 案件操作==========End
 
 onMounted(()=>{
@@ -565,28 +588,7 @@ onMounted(()=>{
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
   initFirstDate();
-
-  getAllCase().then(res=>{
-    allCases.value = res.data.getAllCase;
-    if(allCases.value.length < 1){
-      // 無案件時
-      allCases.value.push(
-        {
-          id: -1,
-          code: '',
-          active: 1,
-          data: {
-            base: {
-              operator: ''
-            },
-            items: []
-          }
-        }
-      );
-    }
-    console.log('allCases',allCases.value);
-  });
-  
+  updateAllCase();
 });
 
 </script>
@@ -604,12 +606,21 @@ onMounted(()=>{
             <!-- 左上 案件操作 固定寬度 -->
             <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 border-end">
               <div :style="'height: '+ topTimeToolH +'rem;'" class="border-bottom">
-                目前案件：{{nowCaseID}}-{{nowCaseCode}}
+                目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}}
               </div>
               <div :style="'height: '+ topTBarHeight +'rem;'" class="d-flex">
-                <div><MDBBtn class="p-1" size="sm" color="primary" @click.stop="">＋</MDBBtn></div>
-                <div><MDBBtn class="p-1" size="sm" color="primary" @click.stop="">–</MDBBtn></div>
-                <div><MDBBtn :disabled="!nowCaseID" class="p-1" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
+                <!-- 增加案件 -->
+                <div>
+                  <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="createNewCase">
+                    <i class="fas fa-plus"></i>
+                  </MDBBtn>
+                </div>
+                <!-- 刪除案件 -->
+                <div>
+                  <MDBBtn class="" size="sm" color="primary" @click.stop="">
+                    <i class="fas fa-minus"></i>
+                  </MDBBtn>
+                </div>
               </div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
@@ -638,18 +649,37 @@ onMounted(()=>{
               </div>
             </div>
           </div>
+          <!-- 時間軸 -->
+          <div id="timebar" class="border-start" :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'">
+            <!-- 時間軸刻度 -->
+            <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'" class="overflow-hidden">
+              <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
+            </div>
+            <!-- 時間軸游標空間 -->
+            <div id="timepointerNow" :style="'z-index: 10;position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            <div id="timepointer" :style="'z-index: 10;position: absolute;top:0;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100" @dblclick.stop="isPointerFix=true"></div>
+            
+          </div>
           <!-- 下方 浮動案件列表 -->
-          <div id="caselistbox" :style="'position: relative; height: calc(100% - ' + topTimeToolH + topTBarHeight + 'rem);'" class="w-100 border-top">
+          <div id="caselistbox" :style="'position: relative; height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" class="w-100 overflow-auto border-top">
             
             <!-- 列表 -->
-            <div v-for="(x, i) in allCases" :style="'height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 border">
-              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="p-2 border-end" @click.stop="getNowCaseBtn(x.id)">
-                <MDBInput size="sm" type="text" label="案件名稱" v-model="x.code" />
-                <MDBInput size="sm" type="text" label="承辦人" v-model="x.data.base.operator" />
+            <div v-for="(x, i) in allCases" 
+              :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 casebox border" 
+              @click.prevent="getNowCaseBtn($event,x.id)" @dblclick.stop="isPointerFix=true">
+              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 p-2 border-end" >
+                <div>{{ x.code }}</div>
+                <div>{{ x.data.base.operator }}</div>
               </div>
-              <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem)'">
-                案件內容
+              <div :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem)'" class="h-100 overflow-hidden">
+                <!-- 時間表 -->
+                <div :style="'position: absolute;height: 1rem;background-color: green; top:0; left:0; width:100%'" class="border"></div>
+                <!-- 預定進度 -->
+                <div :style="'position: absolute;height: 1rem;top:1.5rem;left:0 ;background-color: red; width:100%'" class="border"></div>
+                <!-- 實際進度 -->
+                <div :style="'position: absolute;height: 1rem;top:2.5rem;left:0 ;background-color: green; width:100%'" class="border"></div>
               </div>
+              <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
             </div>
 
 
@@ -664,22 +694,52 @@ onMounted(()=>{
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
             <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p> -->
           </div>
-          <!-- 時間軸 -->
-          <div id="timebar" class="border-start" :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'">
-            <!-- 時間軸刻度 -->
-            <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'" class="overflow-hidden">
-              <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
-            </div>
-            <!-- 時間軸游標空間 -->
-            <div id="timepointerNow" :style="'position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
-            <div id="timepointer" :style="'position: absolute;top:0;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100" @dblclick.stop="isPointerFix=true"></div>
-            
-          </div>
+          
         </div>
         <!-- 右側 功能欄 固定寬度 -->
-        <div :style="'width: '+ rightToolWidth +'rem;'" class="h-100 border">
-          右側功能欄
-        </div>
+        <MDBContainer :style="'width: '+ rightToolWidth +'rem;'" class="h-100 border">
+          <MDBRow class="h-100">
+            <MDBCol col="12" :style="'height: ' + topTimeToolH + 'rem;'" class="border-bottom">
+              功能按鈕
+              <div><MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
+            </MDBCol>
+            <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'">
+              <!-- base -->
+              <MDBRow>
+                <MDBCol md="12" class="mt-2">
+                  案件編號：{{nowCaseData.case.id}}
+                  <MDBCheckbox label="已結案" v-model="nowCaseFinished" />
+                </MDBCol>
+                <MDBCol md="6" class="mt-2">
+                  <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
+                </MDBCol>
+                <div></div>
+                <MDBCol md="12" class="mt-4">
+                  <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
+                </MDBCol>
+                <MDBCol md="6" class="mt-2">
+                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.startdate" format="YYYY-MM-DD" label="起始日"
+                    ref="nowCaseStartDateDOM" />
+                </MDBCol>
+                <MDBCol md="6" class="mt-2">
+                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.enddate" format="YYYY-MM-DD" label="結束日"
+                    ref="nowCaseEnddateDOM" />
+                </MDBCol>
+                <MDBCol md="6" class="mt-2">
+                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.guarantee" format="YYYY-MM-DD" label="保固期限"
+                    ref="nowCaseGuaranteeDOM" />
+                </MDBCol>
+                
+              </MDBRow>
+            </MDBCol>
+          </MDBRow>
+        </MDBContainer>
       </div>
       <!-- 頁腳 -->
       <Footer1 :msg="infomsg" />
@@ -690,5 +750,10 @@ onMounted(()=>{
 .jan-mon{
   background-color: #9f9f9f;
   color: white;
+}
+
+.case-selected {
+  border: 5px solid blue;
+  
 }
 </style>
