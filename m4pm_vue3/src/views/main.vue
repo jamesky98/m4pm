@@ -572,6 +572,10 @@ getchecktoken().then(res=>{
   }
 //#endregion 案件操作==========End
 
+function checkEvent(src){
+  console.log(src)
+}
+
 onMounted(()=>{
   // 視窗調整大小事件
   window.addEventListener('resize',movetimepointer);
@@ -650,19 +654,25 @@ onMounted(()=>{
             </div>
           </div>
           <!-- 時間軸 -->
-          <div id="timebar" class="border-start" :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'">
+          <div id="timebar" 
+            class="border-start" 
+            :style="'position:absolute;top:' + topTimeToolH + 'rem;left:' + leftCaseWidth + 'rem;height: calc(100% - ' + topTimeToolH + 'rem);width: calc(100% - ' + leftCaseWidth + 'rem);'" 
+            @dblclick.stop="isPointerFix=true">
             <!-- 時間軸刻度 -->
             <div :style="'position:relative ;height: ' + topTBarHeight + 'rem;'" class="overflow-hidden">
               <div v-for="(x,i) in tbarItem" :style="'position: absolute;top:0;left: '+ x.left +';width:' + x.width" :class="tbarStyle(i)">{{ x.label }}</div>
             </div>
             <!-- 時間軸游標空間 -->
-            <div id="timepointerNow" :style="'z-index: 10;position: absolute;top:0;border-left: 1px solid blue;border-width:' + pointerWidth + 'px'" class="h-100"></div>
-            <div id="timepointer" :style="'z-index: 10;position: absolute;top:0;border-left: 1px solid red;border-width:' + pointerWidth + 'px'" class="h-100" @dblclick.stop="isPointerFix=true"></div>
+            <div id="timepointerNow" :style="'border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            <div id="timepointer" :style="'border-width:' + pointerWidth + 'px'" class="h-100"></div>
             
           </div>
           <!-- 下方 浮動案件列表 -->
-          <div id="caselistbox" :style="'position: relative; height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" class="w-100 overflow-auto border-top">
-            
+          <div id="caselistbox" 
+            :style="'position: relative; height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" 
+            class="w-100 overflow-auto border-top"
+            @dblclick.stop="isPointerFix=true">
+                        
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
               :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 casebox border" 
@@ -679,6 +689,7 @@ onMounted(()=>{
                 <!-- 實際進度 -->
                 <div :style="'position: absolute;height: 1rem;top:2.5rem;left:0 ;background-color: green; width:100%'" class="border"></div>
               </div>
+              <!-- 框線 -->
               <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
             </div>
 
@@ -750,6 +761,16 @@ onMounted(()=>{
 .jan-mon{
   background-color: #9f9f9f;
   color: white;
+}
+#timepointer, #timepointerNow{
+  pointer-events: none;
+  z-index: 10;
+  position: absolute;
+  top:0;
+  border-left: 1px solid red;
+}
+#timepointerNow{
+  border-left: 1px solid blue;
 }
 
 .case-selected {
