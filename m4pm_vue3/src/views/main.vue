@@ -118,12 +118,7 @@ getchecktoken().then(res=>{
   const mounthDays = [[31,29,31,30,31,30,31,31,30,31,30,31],[31,28,31,30,31,30,31,31,30,31,30,31]]; // 各月份日數
   const weekDays = ['日','一','二','三','四','五','六']
   // 0:年(顯示12個月) 1:季(顯示3個月) 2:月(顯示該月天數) 3:週
-  const tStep = computed(()=>{
-    // let dateobj = new Date(timebarFirstDateNum.value);
-    // let isLeapY = (dateobj.getFullYear() % 4===0)?0:1;
-    // let mdays = mounthDays[isLeapY][dateobj.getMonth()];
-    return [12, 3, 31]
-  });
+  const tStep = ref([12, 3, 31]);
 
   const tbarDOM = ref();
   const tbarPointer = ref();
@@ -155,8 +150,11 @@ getchecktoken().then(res=>{
   const nowCaseData = reactive({case: newCase});
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
+  const nowCaseStartDate = ref("");
   const nowCaseStartDateDOM = ref(); // 開始日
+  const nowCaseEnddate = ref(""); // 結束日
   const nowCaseEnddateDOM = ref(); // 結束日
+  const nowCaseGuarantee = ref(""); // 保固期限
   const nowCaseGuaranteeDOM = ref(); // 保固期限
   const purchaseAM = ref(""); // 採購金額
   const budgetAM = ref(""); // 預算金額
@@ -329,13 +327,15 @@ getchecktoken().then(res=>{
     updateTBar();
   }
   // 更新時間軸
-  function updateTBar(){
+  async function updateTBar(){
     // 更新結束日
-    new Promise((res,rej)=>{
+    return new Promise((res,rej)=>{
       res(setlastDate());
     }).then(res=>{
       // 更新時間軸
       buildTimeStep();
+    }).then(res=>{
+      updateCaseTimeBar(allCases.value);
     })
   }
 
@@ -514,9 +514,34 @@ getchecktoken().then(res=>{
     // 更新時間軸
     updateTBar();
   }
+  // 啟動時間軸指標
   function useTimePointer(){
     isPointerFix.value=false
     isPointerShow.value=!isPointerShow.value
+  }
+  /*日期(數字)轉座標
+    sDNum(起始日)
+    eDNum(結束日)
+    TsDnum(時間軸起始日)
+    TeDnum(時間軸結束日)
+    tbarW(時間軸寬度px)
+  */
+  function dateNum2LeftWidth(sDNum, eDNum, TsDnum, TeDnum, tbarW){
+    
+    let dDnum = (TeDnum - TsDnum);
+    if(sDNum){
+      if(eDNum){
+        let res = {};
+        res.left = (sDNum - TsDnum) / dDnum * tbarW;
+        res.width = (eDNum - sDNum) / dDnum * tbarW;
+        return res
+      }else{
+        let left;
+        left = (sDNum - TsDnum) / dDnum * tbarW;
+        return left
+      }
+    }
+    return
   }
 //#endregion 時間軸==========End
 
@@ -547,9 +572,9 @@ getchecktoken().then(res=>{
         nowCaseData.case = getCase;
         nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
         
-        nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate.split('T')[0]:' ';
-        nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate.split('T')[0]:' ';
-        nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee.split('T')[0]:' ';
+        nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
+        nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
+        nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
 
         purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
         budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
@@ -570,9 +595,9 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
-    nowCaseData.case.data.base.startdate = nowCaseData.case.data.base.startdate + 'T08:00:00.000Z' 
-    nowCaseData.case.data.base.enddate = nowCaseData.case.data.base.enddate + 'T08:00:00.000Z' 
-    nowCaseData.case.data.base.guarantee = nowCaseData.case.data.base.guarantee + 'T08:00:00.000Z' 
+    nowCaseData.case.data.base.startdate = (nowCaseStartDate.value)?(nowCaseStartDate.value):''; 
+    nowCaseData.case.data.base.enddate = (nowCaseEnddate.value)?(nowCaseEnddate.value):'';
+    nowCaseData.case.data.base.guarantee = (nowCaseGuarantee.value)?(nowCaseGuarantee.value):'';
     saveCase({
       saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
       code: (nowCaseData.case.code)?nowCaseData.case.code:null,
@@ -580,9 +605,6 @@ getchecktoken().then(res=>{
       data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
       parentId: (nowCaseData.case.parent_id)?nowCaseData.case.parent_id:null
     }).then(res=>{
-      nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate.split('T')[0]:' ';
-      nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate.split('T')[0]:' ';
-      nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee.split('T')[0]:' ';
       // 更新
       updateAllCase();
     })
@@ -590,29 +612,35 @@ getchecktoken().then(res=>{
   // 更新總案件列表
   function updateAllCase(){
     getAllCase().then(res=>{
-      let myData = allCases.value = res.data.getAllCase;
-      console.log(myData);
+      allCases.value = res.data.getAllCase;
+      updateCaseTimeBar(allCases.value)
+    });
+  }
+  function updateCaseTimeBar(myData){
+    // let myData = allCases.value = res.data.getAllCase;
+      // allCases.value = myData;
       if(myData.length < 1){
         // 無案件時
         allCases.value.push(nowCaseData.value)
       }else{
         // 計算各案件時間軸
         for(let i=0;i<myData.length;i++){
-          let startDateNum = new Date(myData[i].data.base.startdate);
-          let endDateNum = new Date(myData[i].data.base.enddate);
-          let guaranteeDateNum = new Date(myData[i].data.base.guarantee);
-          try{
-            console.log(startDateNum.toISOString())
-            console.log(endDateNum.toISOString())
-            console.log(guaranteeDateNum.toISOString())
-          }catch{
-
+          let startDateNum = new Date(myData[i].data.base.startdate + 'T00:00:00.000').valueOf();
+          let endDateNum = new Date(myData[i].data.base.enddate + 'T23:59:59.000').valueOf();
+          let guaranteeDateNum = new Date(myData[i].data.base.guarantee + 'T23:59:59.000').valueOf();
+          // 執行期間
+          myData[i].tbarSize = dateNum2LeftWidth(startDateNum,endDateNum,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+          // 保固期間
+          myData[i].guarSize = dateNum2LeftWidth(endDateNum,guaranteeDateNum,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+          // 各子項目(item)時間位置
+          for(let j=0;myData[i].data.items.length;j++){
+            let itemDateNum = new Date(myData[i].data.items[j].date + 'T00:00:00.000').valueOf();
+            myData[i].data.items[j].left = dateNum2LeftWidth(itemDateNum,null,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
           }
-          
         }
       }
+      // console.log(myData);
       // console.log('allCases',allCases.value);
-    });
   }
   // 新增案件(清空案件基本資料)
   function createNewCase(){
@@ -770,11 +798,13 @@ onMounted(()=>{
               <div 
                 :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem);min-width: 4rem'" 
                 class="h-100 overflow-hidden d-flex flex-column">
-                <!-- 時間表 -->
+                <!-- 時程表 -->
                 <div style="position: relative;" class="w-100 flex-fill">
-                  
-                  <div 
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:0;background-color: green; width:100%'" 
+                  <div v-show="x.tbarSize.width>0"
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.tbarSize.left + 'px;background-color: green; width:' + x.tbarSize.width + 'px;'" 
+                    class="border"></div>
+                  <div v-show="x.guarSize.width>0"
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: yellow; width:' + x.guarSize.width + 'px;'" 
                     class="border"></div>
                 </div>
                 
@@ -783,7 +813,7 @@ onMounted(()=>{
                 <div style="position: relative;" class="w-100 flex-fill">
               
                   <div 
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: red; width:100%'" 
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: red; width:0'" 
                     class="border"></div>  
                 </div>
                 
@@ -791,7 +821,7 @@ onMounted(()=>{
                 <div style="position: relative;" class="w-100 flex-fill">
                   
                   <div 
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: yellow; width:100%'" 
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: yellow; width:0'" 
                     class="border"></div>
                 </div>
               </div>
@@ -801,7 +831,7 @@ onMounted(()=>{
 
 
 
-            <!-- <p>下方 浮動案件列表</p>
+            <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
             <p>時間軸終點：{{timebarEnd}}</p>
@@ -809,7 +839,7 @@ onMounted(()=>{
             <p>時間軸內部寬度：{{pointerWidth}}</p>
             <p>時間軸起始日(數)：{{timebarFirstDateNum}}，時間軸起始日(字)：{{timebarFirstDateStr}}</p>
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
-            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p> -->
+            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p>
           </div>
           
         </div>
@@ -821,101 +851,117 @@ onMounted(()=>{
               <div><MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
             </MDBCol>
             <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'">
+
               <!-- base -->
               <MDBRow>
-                <MDBCol md="12" class="mt-2">
-                  案件編號：{{nowCaseData.case.id}}
-                  <MDBCheckbox label="已結案" v-model="nowCaseFinished" />
+                <!-- 標題 -->
+                <MDBCol 
+                  col="12" style="height: 2rem;cursor: pointer;"
+                  class="d-flex align-items-center bg-danger bg-gradient text-white ripple-surface">
+                  <div class="">
+                    基本資料
+                  </div>
+                  <i class="fas fa-angle-down rotate-icon" style="transition-property: transform;"></i>
                 </MDBCol>
-                <MDBCol md="6" class="mt-2">
-                  <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
+                <!-- 內文 -->
+                <MDBCol col="12">
+                  <MDBRow>
+                    <MDBCol md="12" class="">
+                      案件編號：{{nowCaseData.case.id}}
+                      <MDBCheckbox label="已結案" v-model="nowCaseFinished" />
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
+                    </MDBCol>
+                    <div></div>
+                    <MDBCol md="12" class="mt-4">
+                      <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseStartDate" 
+                        format="YYYY-MM-DD" label="起始日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn
+                        ref="nowCaseStartDateDOM" />
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseEnddate" 
+                        format="YYYY-MM-DD" label="結束日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn
+                        ref="nowCaseEnddateDOM" />
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseGuarantee" 
+                        format="YYYY-MM-DD" label="保固期限"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn
+                        ref="nowCaseGuaranteeDOM" />
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        label="採購金額" 
+                        v-model:model-value="purchaseAM"
+                        @update:model-value="dataFromCurrency('purchase_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        label="預算金額" 
+                        v-model:model-value="budgetAM"
+                        @update:model-value="dataFromCurrency('budget_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        label="擴充金額" 
+                        v-model:model-value="additionAM"
+                        @update:model-value="dataFromCurrency('addition_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        label="決標金額" 
+                        v-model:model-value="awardPrice"
+                        @update:model-value="dataFromCurrency('award_price',$event)"/>
+                    </MDBCol>
+                    
+                  </MDBRow>
                 </MDBCol>
-                <div></div>
-                <MDBCol md="12" class="mt-4">
-                  <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
-                </MDBCol>
-                <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker 
-                    size="sm" v-model="nowCaseData.case.data.base.startdate" 
-                    format="YYYY-MM-DD" label="起始日"
-                    :monthsFull = "monthsFull"
-                    :monthsShort = "monthsShort"
-                    :weekdaysFull = "weekdaysFull"
-                    :weekdaysShort = "weekdaysShort"
-                    :weekdaysNarrow = "weekdaysNarrow"
-                    confirmDateOnSelect
-                    removeCancelBtn
-                    removeOkBtn
-                    ref="nowCaseStartDateDOM" />
-                </MDBCol>
-                <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker 
-                    size="sm" v-model="nowCaseData.case.data.base.enddate" 
-                    format="YYYY-MM-DD" label="結束日"
-                    :monthsFull = "monthsFull"
-                    :monthsShort = "monthsShort"
-                    :weekdaysFull = "weekdaysFull"
-                    :weekdaysShort = "weekdaysShort"
-                    :weekdaysNarrow = "weekdaysNarrow"
-                    confirmDateOnSelect
-                    removeCancelBtn
-                    removeOkBtn
-                    ref="nowCaseEnddateDOM" />
-                </MDBCol>
-                <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker 
-                    size="sm" v-model="nowCaseData.case.data.base.guarantee" 
-                    format="YYYY-MM-DD" label="保固期限"
-                    :monthsFull = "monthsFull"
-                    :monthsShort = "monthsShort"
-                    :weekdaysFull = "weekdaysFull"
-                    :weekdaysShort = "weekdaysShort"
-                    :weekdaysNarrow = "weekdaysNarrow"
-                    confirmDateOnSelect
-                    removeCancelBtn
-                    removeOkBtn
-                    ref="nowCaseGuaranteeDOM" />
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput 
-                    size="sm" 
-                    type="text" 
-                    label="採購金額" 
-                    v-model:model-value="purchaseAM"
-                    @update:model-value="dataFromCurrency('purchase_am',$event)"/>
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput 
-                    size="sm" 
-                    type="text" 
-                    label="預算金額" 
-                    v-model:model-value="budgetAM"
-                    @update:model-value="dataFromCurrency('budget_am',$event)"/>
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput 
-                    size="sm" 
-                    type="text" 
-                    label="擴充金額" 
-                    v-model:model-value="additionAM"
-                    @update:model-value="dataFromCurrency('addition_am',$event)"/>
-                </MDBCol>
-                <MDBCol md="12" class="mt-2">
-                  <MDBInput 
-                    size="sm" 
-                    type="text" 
-                    label="決標金額" 
-                    v-model:model-value="awardPrice"
-                    @update:model-value="dataFromCurrency('award_price',$event)"/>
-                </MDBCol>
-                
               </MDBRow>
+                
             </MDBCol>
           </MDBRow>
         </MDBContainer>
