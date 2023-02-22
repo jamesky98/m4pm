@@ -93,6 +93,7 @@ getchecktoken().then(res=>{
   const pointerX = ref("");
   const pointerY = ref("");
   const isPointerFix = ref(false);
+  const isPointerShow = ref(false);
   const timebarStart = ref("");
   const timebarEnd = ref("");
   
@@ -132,8 +133,15 @@ getchecktoken().then(res=>{
   var timeout = false;
   var delta = 200;
 
+  // 日曆元件設定
+  const monthsFull =['一月,','二月,','三月,','四月,','五月,','六月,','七月,','八月,','九月,','十月,','十一月,','十二月,'];
+  const monthsShort= monthsFull;
+  const weekdaysFull=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+  const weekdaysShort=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+  const weekdaysNarrow=['日', '一', '二', '三', '四', '五', '六'];
+
   // Case參數==============Start
-  const allCases = ref([]);
+  const allCases = ref([]); // 全案件資料
   const newCase = {
     id: '',
     code: '',
@@ -143,14 +151,17 @@ getchecktoken().then(res=>{
       items: [],
     },
     parent_id: null,
-  };
+  }; // 案件初始化資料
   const nowCaseData = reactive({case: newCase});
-  const nowCaseOperator = ref("");
-  const nowCaseFinished = ref(false);
-  const nowCaseStartDateDOM = ref();
-  const nowCaseEnddateDOM = ref();
-  const nowCaseGuaranteeDOM = ref();
-  
+  const nowCaseOperator = ref(""); // 承辦人
+  const nowCaseFinished = ref(false); // 是否結案
+  const nowCaseStartDateDOM = ref(); // 開始日
+  const nowCaseEnddateDOM = ref(); // 結束日
+  const nowCaseGuaranteeDOM = ref(); // 保固期限
+  const purchaseAM = ref(""); // 採購金額
+  const budgetAM = ref(""); // 預算金額
+  const additionAM = ref(""); // 增購金額
+  const awardPrice = ref(""); // 決標金額
 
   // Case參數==============End
 
@@ -190,6 +201,7 @@ getchecktoken().then(res=>{
   async function movetimepointer(){
     // console.log('movetimepointer');
     if (isPointerFix.value){return}
+    if (!isPointerShow.value){return}
     let div=document.getElementById('timepointer');
     let tbarSize = await getTBarSize();
     if (!div) {
@@ -502,6 +514,10 @@ getchecktoken().then(res=>{
     // 更新時間軸
     updateTBar();
   }
+  function useTimePointer(){
+    isPointerFix.value=false
+    isPointerShow.value=!isPointerShow.value
+  }
 //#endregion 時間軸==========End
 
 //#region 案件操作==========Start
@@ -530,6 +546,17 @@ getchecktoken().then(res=>{
         let getCase = res.data.getCaseById;
         nowCaseData.case = getCase;
         nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
+        
+        nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate.split('T')[0]:' ';
+        nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate.split('T')[0]:' ';
+        nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee.split('T')[0]:' ';
+
+        purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
+        budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
+        additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
+        awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
+
+        
         // console.log(nowCaseData.case);
       });
     }
@@ -543,6 +570,9 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
+    nowCaseData.case.data.base.startdate = nowCaseData.case.data.base.startdate + 'T08:00:00.000Z' 
+    nowCaseData.case.data.base.enddate = nowCaseData.case.data.base.enddate + 'T08:00:00.000Z' 
+    nowCaseData.case.data.base.guarantee = nowCaseData.case.data.base.guarantee + 'T08:00:00.000Z' 
     saveCase({
       saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
       code: (nowCaseData.case.code)?nowCaseData.case.code:null,
@@ -550,6 +580,9 @@ getchecktoken().then(res=>{
       data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
       parentId: (nowCaseData.case.parent_id)?nowCaseData.case.parent_id:null
     }).then(res=>{
+      nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate.split('T')[0]:' ';
+      nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate.split('T')[0]:' ';
+      nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee.split('T')[0]:' ';
       // 更新
       updateAllCase();
     })
@@ -557,10 +590,26 @@ getchecktoken().then(res=>{
   // 更新總案件列表
   function updateAllCase(){
     getAllCase().then(res=>{
-      allCases.value = res.data.getAllCase;
-      if(allCases.value.length < 1){
+      let myData = allCases.value = res.data.getAllCase;
+      console.log(myData);
+      if(myData.length < 1){
         // 無案件時
         allCases.value.push(nowCaseData.value)
+      }else{
+        // 計算各案件時間軸
+        for(let i=0;i<myData.length;i++){
+          let startDateNum = new Date(myData[i].data.base.startdate);
+          let endDateNum = new Date(myData[i].data.base.enddate);
+          let guaranteeDateNum = new Date(myData[i].data.base.guarantee);
+          try{
+            console.log(startDateNum.toISOString())
+            console.log(endDateNum.toISOString())
+            console.log(guaranteeDateNum.toISOString())
+          }catch{
+
+          }
+          
+        }
       }
       // console.log('allCases',allCases.value);
     });
@@ -570,6 +619,43 @@ getchecktoken().then(res=>{
     nowCaseData.case = newCase;
     nowCaseData.case.id = -1;
   }
+  // 轉成貨幣格式
+  function toCurrency(num){
+    let parts = num.toString().split('.');
+    let res;
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if(parts.length===1){
+      res = parts[0]
+    }else{
+      res = parts.join('.');
+    }
+    return res;
+  }
+  // 反算貨幣
+  function fromCurrency(n)
+  {
+      return n.replace(/[,]+/g, '');
+  }
+  function dataFromCurrency(parm,value){
+    let res = parseInt(fromCurrency(value));
+    nowCaseData.case.data.base[parm] = res;
+    switch (parm){
+      case 'purchase_am':
+        purchaseAM.value = toCurrency(res);
+        break;
+      case 'budget_am':
+        budgetAM.value = toCurrency(res);
+        break;
+      case 'addition_am':
+        additionAM.value = toCurrency(res);
+        break;
+      case 'award_price':
+        awardPrice.value = toCurrency(res);
+        break;
+    }
+    // console.log(nowCaseData.case)
+  }
+
 //#endregion 案件操作==========End
 
 function checkEvent(src){
@@ -643,7 +729,7 @@ onMounted(()=>{
                   <div style="position:absolute;top:0.25rem; right: 1rem">
                     <MDBBtn size="sm" color="primary" @click.stop="goToDay()">今日</MDBBtn>
                     <MDBBtn size="sm" color="primary" @click.stop="changeTimeBarType()">{{timebarStepList[timebarType]}}</MDBBtn>
-                    <MDBBtn size="sm" color="primary" @click.stop="isPointerFix=false">＋</MDBBtn>
+                    <MDBBtn size="sm" color="primary" @click.stop="useTimePointer()">＋</MDBBtn>
                   </div>
                 </div>
                 <div class="d-flex align-items-center">
@@ -664,7 +750,7 @@ onMounted(()=>{
             </div>
             <!-- 時間軸游標空間 -->
             <div id="timepointerNow" :style="'border-width:' + pointerWidth + 'px'" class="h-100"></div>
-            <div id="timepointer" :style="'border-width:' + pointerWidth + 'px'" class="h-100"></div>
+            <div v-show="isPointerShow" id="timepointer" :style="'border-width:' + pointerWidth + 'px'" class="h-100"></div>
             
           </div>
           <!-- 下方 浮動案件列表 -->
@@ -681,13 +767,33 @@ onMounted(()=>{
                 <div>{{ x.code }}</div>
                 <div>{{ x.data.base.operator }}</div>
               </div>
-              <div :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem)'" class="h-100 overflow-hidden">
+              <div 
+                :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem);min-width: 4rem'" 
+                class="h-100 overflow-hidden d-flex flex-column">
                 <!-- 時間表 -->
-                <div :style="'position: absolute;height: 1rem;background-color: green; top:0; left:0; width:100%'" class="border"></div>
-                <!-- 預定進度 -->
-                <div :style="'position: absolute;height: 1rem;top:1.5rem;left:0 ;background-color: red; width:100%'" class="border"></div>
-                <!-- 實際進度 -->
-                <div :style="'position: absolute;height: 1rem;top:2.5rem;left:0 ;background-color: green; width:100%'" class="border"></div>
+                <div style="position: relative;" class="w-100 flex-fill">
+                  
+                  <div 
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:0;background-color: green; width:100%'" 
+                    class="border"></div>
+                </div>
+                
+                
+                <!-- 執行進度 -->
+                <div style="position: relative;" class="w-100 flex-fill">
+              
+                  <div 
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: red; width:100%'" 
+                    class="border"></div>  
+                </div>
+                
+                <!-- 經費使用 -->
+                <div style="position: relative;" class="w-100 flex-fill">
+                  
+                  <div 
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: yellow; width:100%'" 
+                    class="border"></div>
+                </div>
               </div>
               <!-- 框線 -->
               <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
@@ -735,16 +841,78 @@ onMounted(()=>{
                   <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
                 </MDBCol>
                 <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.startdate" format="YYYY-MM-DD" label="起始日"
+                  <MDBDatepicker 
+                    size="sm" v-model="nowCaseData.case.data.base.startdate" 
+                    format="YYYY-MM-DD" label="起始日"
+                    :monthsFull = "monthsFull"
+                    :monthsShort = "monthsShort"
+                    :weekdaysFull = "weekdaysFull"
+                    :weekdaysShort = "weekdaysShort"
+                    :weekdaysNarrow = "weekdaysNarrow"
+                    confirmDateOnSelect
+                    removeCancelBtn
+                    removeOkBtn
                     ref="nowCaseStartDateDOM" />
                 </MDBCol>
                 <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.enddate" format="YYYY-MM-DD" label="結束日"
+                  <MDBDatepicker 
+                    size="sm" v-model="nowCaseData.case.data.base.enddate" 
+                    format="YYYY-MM-DD" label="結束日"
+                    :monthsFull = "monthsFull"
+                    :monthsShort = "monthsShort"
+                    :weekdaysFull = "weekdaysFull"
+                    :weekdaysShort = "weekdaysShort"
+                    :weekdaysNarrow = "weekdaysNarrow"
+                    confirmDateOnSelect
+                    removeCancelBtn
+                    removeOkBtn
                     ref="nowCaseEnddateDOM" />
                 </MDBCol>
                 <MDBCol md="6" class="mt-2">
-                  <MDBDatepicker size="sm" v-model="nowCaseData.case.data.base.guarantee" format="YYYY-MM-DD" label="保固期限"
+                  <MDBDatepicker 
+                    size="sm" v-model="nowCaseData.case.data.base.guarantee" 
+                    format="YYYY-MM-DD" label="保固期限"
+                    :monthsFull = "monthsFull"
+                    :monthsShort = "monthsShort"
+                    :weekdaysFull = "weekdaysFull"
+                    :weekdaysShort = "weekdaysShort"
+                    :weekdaysNarrow = "weekdaysNarrow"
+                    confirmDateOnSelect
+                    removeCancelBtn
+                    removeOkBtn
                     ref="nowCaseGuaranteeDOM" />
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput 
+                    size="sm" 
+                    type="text" 
+                    label="採購金額" 
+                    v-model:model-value="purchaseAM"
+                    @update:model-value="dataFromCurrency('purchase_am',$event)"/>
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput 
+                    size="sm" 
+                    type="text" 
+                    label="預算金額" 
+                    v-model:model-value="budgetAM"
+                    @update:model-value="dataFromCurrency('budget_am',$event)"/>
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput 
+                    size="sm" 
+                    type="text" 
+                    label="擴充金額" 
+                    v-model:model-value="additionAM"
+                    @update:model-value="dataFromCurrency('addition_am',$event)"/>
+                </MDBCol>
+                <MDBCol md="12" class="mt-2">
+                  <MDBInput 
+                    size="sm" 
+                    type="text" 
+                    label="決標金額" 
+                    v-model:model-value="awardPrice"
+                    @update:model-value="dataFromCurrency('award_price',$event)"/>
                 </MDBCol>
                 
               </MDBRow>
@@ -772,7 +940,9 @@ onMounted(()=>{
 #timepointerNow{
   border-left: 1px solid blue;
 }
-
+.boxline{
+  pointer-events: none;
+}
 .case-selected {
   border: 5px solid blue;
   
