@@ -830,7 +830,8 @@ onMounted(()=>{
                   <div v-for="(item, idx) in x.data.items" v-show="item.position.left>=0"
                     :style="'position: absolute;height: 0;width:0;top:calc((100% / 2) - 0.5rem); left:' + item.position.left + 'px;'" 
                     class="border">
-                    <div><i class="fab fa-android"></i></div>
+                    <!-- <div><i class="fab fa-android"></i></div> -->
+                    <i class="item-mark fas fa-i-cursor"></i>
                   </div>
                 </div>
                 
@@ -1062,5 +1063,12 @@ onMounted(()=>{
 .accordion-button{
   color:white;
   background-color: rgba(var(--mdb-info-rgb),var(--mdb-bg-opacity));
+}
+.item-mark{
+  position: absolute;
+  font-size: 1.5rem;
+  color: darkturquoise;
+  top: -5px;
+  left: -5px;
 }
 </style>
