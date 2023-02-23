@@ -3,30 +3,16 @@ import Footer1 from "../components/Footer.vue";
 import Navbar1 from "../components/Navbar.vue";
 import path from "path-browserify";
 import {
-  MDBInput,
-  MDBTextarea,
-  MDBCol,
-  MDBRow,
-  MDBContainer,
-  MDBSelect,
-  MDBDatepicker,
-  MDBCheckbox,
-  MDBBtn,
-  MDBPopconfirm,
+  MDBCol, MDBRow, MDBContainer,
+  MDBInput, MDBTextarea, MDBSelect, 
+  MDBDatepicker, MDBSwitch, MDBCheckbox, 
+  MDBBtn, MDBPopconfirm,
+  MDBAccordion, MDBAccordionItem,
   MDBSpinner,
   MDBAnimation,
   MDBAlert,
-  MDBModal,
-  MDBModalHeader,
-  MDBModalTitle,
-  MDBModalBody,
-  MDBModalFooter,
-  MDBTabs,
-  MDBTabNav,
-  MDBTabContent,
-  MDBTabItem,
-  MDBTabPane,
-  MDBSwitch,
+  MDBModal, MDBModalHeader, MDBModalTitle, MDBModalBody, MDBModalFooter,
+  MDBTabs, MDBTabNav, MDBTabContent, MDBTabItem, MDBTabPane,
 } from 'mdb-vue-ui-kit';
 import { ref, onMounted, provide, inject, watch, reactive, toRaw } from "vue";
 import { computed } from "@vue/reactivity";
@@ -79,6 +65,7 @@ getchecktoken().then(res=>{
   const alertColor = ref("primary");
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
+  const activeItem = ref('');
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -142,20 +129,25 @@ getchecktoken().then(res=>{
     code: '',
     finished: 0,
     data: {
-      base: {},
+      base: {
+        startdate: '',
+        enddate: '',
+        guarantee: '',
+      },
       items: [],
     },
     parent_id: null,
   }; // 案件初始化資料
+  const newItem = {
+    sort: '',
+    name: '未命名',
+    type: -1,
+    date: ' '
+  }; // 項目初始化資料
   const nowCaseData = reactive({case: newCase});
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
-  const nowCaseStartDate = ref("");
-  const nowCaseStartDateDOM = ref(); // 開始日
-  const nowCaseEnddate = ref(""); // 結束日
-  const nowCaseEnddateDOM = ref(); // 結束日
-  const nowCaseGuarantee = ref(""); // 保固期限
-  const nowCaseGuaranteeDOM = ref(); // 保固期限
+
   const purchaseAM = ref(""); // 採購金額
   const budgetAM = ref(""); // 預算金額
   const additionAM = ref(""); // 增購金額
@@ -332,8 +324,12 @@ getchecktoken().then(res=>{
     return new Promise((res,rej)=>{
       res(setlastDate());
     }).then(res=>{
+      return getTBarSize();
+    }).then(res=>{
       // 更新時間軸
-      buildTimeStep();
+      return buildTimeStep();
+    }).then(res=>{
+      return movetimepointer();
     }).then(res=>{
       updateCaseTimeBar(allCases.value);
     })
@@ -377,6 +373,7 @@ getchecktoken().then(res=>{
   
   // 創建時間軸刻度
   function buildTimeStep(){
+    // console.log('buildTimeStep')
     let type = timebarType.value;
     let firstDateObj = new Date(timebarFirstDateNum.value);
     let tempY = firstDateObj.getFullYear();
@@ -477,15 +474,19 @@ getchecktoken().then(res=>{
     }
     return classStr
   }
-  // 視窗小整大小
-  function resizeend() {
-    if (new Date() - rtime < delta) {
-      setTimeout(resizeend, delta);
-    } else {
-      timeout = false;
-      buildTimeStep();
-    }               
-  }
+  // 視窗小整大小(停用)
+  // function resizeend() {
+  //   // console.log('resizeend')
+  //   // console.log('resizeend',new Date(),rtime,delta)
+  //   if (new Date() - rtime < delta) {
+  //     // console.log('waiting...')
+  //     setTimeout(resizeend, delta);
+  //   } else {
+  //     // console.log('buildTimeStep')
+  //     timeout = false;
+  //     updateTBar();
+  //   }               
+  // }
   // 跳到今日
   function goToDay(){
     let toDayNum = timebarToDayNum.value;
@@ -527,21 +528,21 @@ getchecktoken().then(res=>{
     tbarW(時間軸寬度px)
   */
   function dateNum2LeftWidth(sDNum, eDNum, TsDnum, TeDnum, tbarW){
-    
+    let res = {};
     let dDnum = (TeDnum - TsDnum);
     if(sDNum){
       if(eDNum){
-        let res = {};
         res.left = (sDNum - TsDnum) / dDnum * tbarW;
         res.width = (eDNum - sDNum) / dDnum * tbarW;
-        return res
       }else{
-        let left;
-        left = (sDNum - TsDnum) / dDnum * tbarW;
-        return left
+        res.left = (sDNum - TsDnum) / dDnum * tbarW;
+        res.width = 0;
       }
+    }else{
+      res.left = 0;
+      res.width = 0;
     }
-    return
+    return res
   }
 //#endregion 時間軸==========End
 
@@ -572,9 +573,9 @@ getchecktoken().then(res=>{
         nowCaseData.case = getCase;
         nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
         
-        nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
-        nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
-        nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
+        // nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
+        // nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
+        // nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
 
         purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
         budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
@@ -595,9 +596,13 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
-    nowCaseData.case.data.base.startdate = (nowCaseStartDate.value)?(nowCaseStartDate.value):''; 
-    nowCaseData.case.data.base.enddate = (nowCaseEnddate.value)?(nowCaseEnddate.value):'';
-    nowCaseData.case.data.base.guarantee = (nowCaseGuarantee.value)?(nowCaseGuarantee.value):'';
+    nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?(nowCaseData.case.data.base.startdate):' '; 
+    nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?(nowCaseData.case.data.base.enddate):' ';
+    nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?(nowCaseData.case.data.base.guarantee):' ';
+    for(let i=0;i<nowCaseData.case.data.items.length;i++){
+      // 處理空日期
+      nowCaseData.case.data.items[i].date = (nowCaseData.case.data.items[i].date)?nowCaseData.case.data.items[i].date:' ';
+    }
     saveCase({
       saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
       code: (nowCaseData.case.code)?nowCaseData.case.code:null,
@@ -633,19 +638,28 @@ getchecktoken().then(res=>{
           // 保固期間
           myData[i].guarSize = dateNum2LeftWidth(endDateNum,guaranteeDateNum,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
           // 各子項目(item)時間位置
-          for(let j=0;myData[i].data.items.length;j++){
-            let itemDateNum = new Date(myData[i].data.items[j].date + 'T00:00:00.000').valueOf();
-            myData[i].data.items[j].left = dateNum2LeftWidth(itemDateNum,null,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+          for(let j=0;j<myData[i].data.items.length;j++){
+            // console.log(myData[i].data.items[j])
+            if(myData[i].data.items[j].date){
+              let itemDateNum = new Date(myData[i].data.items[j].date + 'T00:00:00.000').valueOf();
+              myData[i].data.items[j].position = dateNum2LeftWidth(itemDateNum,null,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+            }else{
+              myData[i].data.items[j].position = -1;
+            }
           }
         }
       }
-      // console.log(myData);
+      console.log(myData);
       // console.log('allCases',allCases.value);
   }
   // 新增案件(清空案件基本資料)
   function createNewCase(){
     nowCaseData.case = newCase;
     nowCaseData.case.id = -1;
+  }
+  // 新增項目
+  function addItem(){
+    nowCaseData.case.data.items.push(newItem);
   }
   // 轉成貨幣格式
   function toCurrency(num){
@@ -692,15 +706,19 @@ function checkEvent(src){
 
 onMounted(()=>{
   // 視窗調整大小事件
-  window.addEventListener('resize',movetimepointer);
-  window.addEventListener('resize',buildTimeStep);
-  $(window).resize(function() {
-      rtime = new Date();
-      if (timeout === false) {
-          timeout = true;
-          setTimeout(resizeend, delta);
-      }
-  });
+  // window.addEventListener('resize',movetimepointer);
+  window.addEventListener('resize',updateTBar);
+  // $(window).resize(function() {
+  //   console.log('resize')
+  //     rtime = new Date();
+  //     console.log('rtime',rtime)
+  //     console.log('timeout',timeout)
+  //     if (timeout === false) {
+  //         timeout = true;
+  //         console.log('timeout if false')
+  //         setTimeout(resizeend, delta);
+  //     }
+  // });
 
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
@@ -800,12 +818,20 @@ onMounted(()=>{
                 class="h-100 overflow-hidden d-flex flex-column">
                 <!-- 時程表 -->
                 <div style="position: relative;" class="w-100 flex-fill">
+                  <!-- 執行期間 -->
                   <div v-show="x.tbarSize.width>0"
                     :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.tbarSize.left + 'px;background-color: green; width:' + x.tbarSize.width + 'px;'" 
                     class="border"></div>
+                  <!-- 保固期間 -->
                   <div v-show="x.guarSize.width>0"
                     :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: yellow; width:' + x.guarSize.width + 'px;'" 
                     class="border"></div>
+                  <!-- Items -->
+                  <div v-for="(item, idx) in x.data.items" v-show="item.position.left>=0"
+                    :style="'position: absolute;height: 0;width:0;top:calc((100% / 2) - 0.5rem); left:' + item.position.left + 'px;'" 
+                    class="border">
+                    <div><i class="fab fa-android"></i></div>
+                  </div>
                 </div>
                 
                 
@@ -831,7 +857,7 @@ onMounted(()=>{
 
 
 
-            <p>下方 浮動案件列表</p>
+            <!-- <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
             <p>時間軸終點：{{timebarEnd}}</p>
@@ -839,32 +865,39 @@ onMounted(()=>{
             <p>時間軸內部寬度：{{pointerWidth}}</p>
             <p>時間軸起始日(數)：{{timebarFirstDateNum}}，時間軸起始日(字)：{{timebarFirstDateStr}}</p>
             <p>時間軸結束日(數)：{{timebarLastDateNum}}，時間軸結束日(字)：{{timebarLastDateStr}}</p>
-            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p>
+            <p>游標日期(數)：{{timebarPtDateNum}}，游標日期(字)：{{timebarPtDateStr}}</p> -->
           </div>
           
         </div>
         <!-- 右側 功能欄 固定寬度 -->
-        <MDBContainer :style="'width: '+ rightToolWidth +'rem;'" class="h-100 border">
+        <MDBContainer :style="'width: '+ rightToolWidth +'rem;'" class="h-100">
           <MDBRow class="h-100">
-            <MDBCol col="12" :style="'height: ' + topTimeToolH + 'rem;'" class="border-bottom">
-              功能按鈕
-              <div><MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
-            </MDBCol>
-            <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'">
-
-              <!-- base -->
+            <MDBCol col="12" :style="'height: ' + topTimeToolH + 'rem;'" class="">
               <MDBRow>
-                <!-- 標題 -->
-                <MDBCol 
-                  col="12" style="height: 2rem;cursor: pointer;"
-                  class="d-flex align-items-center bg-danger bg-gradient text-white ripple-surface">
-                  <div class="">
-                    基本資料
+                <MDBCol col="12">功能按鈕</MDBCol>
+                <MDBCol col="12" class="d-flex">
+                  <div><MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
+                  <!-- 增加案件 -->
+                  <div>
+                    <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="addItem">
+                      <i class="fas fa-plus"></i>
+                    </MDBBtn>
                   </div>
-                  <i class="fas fa-angle-down rotate-icon" style="transition-property: transform;"></i>
+                  <!-- 刪除案件 -->
+                  <div>
+                    <MDBBtn class="" size="sm" color="primary" @click.stop="">
+                      <i class="fas fa-minus"></i>
+                    </MDBBtn>
+                  </div>    
                 </MDBCol>
-                <!-- 內文 -->
-                <MDBCol col="12">
+              </MDBRow>
+            </MDBCol>
+            <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'" class="px-0 overflow-auto">
+              <MDBAccordion v-model="activeItem">
+                <MDBAccordionItem
+                  headerTitle="基本資料"
+                  collapseId="base">
+                  <!-- 內容 -->
                   <MDBRow>
                     <MDBCol md="12" class="">
                       案件編號：{{nowCaseData.case.id}}
@@ -885,7 +918,7 @@ onMounted(()=>{
                     </MDBCol>
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
-                        size="sm" v-model="nowCaseStartDate" 
+                        size="sm" v-model="nowCaseData.case.data.base.startdate" 
                         format="YYYY-MM-DD" label="起始日"
                         :monthsFull = "monthsFull"
                         :monthsShort = "monthsShort"
@@ -894,12 +927,11 @@ onMounted(()=>{
                         :weekdaysNarrow = "weekdaysNarrow"
                         confirmDateOnSelect
                         removeCancelBtn
-                        removeOkBtn
-                        ref="nowCaseStartDateDOM" />
+                        removeOkBtn/>
                     </MDBCol>
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
-                        size="sm" v-model="nowCaseEnddate" 
+                        size="sm" v-model="nowCaseData.case.data.base.enddate" 
                         format="YYYY-MM-DD" label="結束日"
                         :monthsFull = "monthsFull"
                         :monthsShort = "monthsShort"
@@ -908,12 +940,11 @@ onMounted(()=>{
                         :weekdaysNarrow = "weekdaysNarrow"
                         confirmDateOnSelect
                         removeCancelBtn
-                        removeOkBtn
-                        ref="nowCaseEnddateDOM" />
+                        removeOkBtn/>
                     </MDBCol>
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
-                        size="sm" v-model="nowCaseGuarantee" 
+                        size="sm" v-model="nowCaseData.case.data.base.guarantee" 
                         format="YYYY-MM-DD" label="保固期限"
                         :monthsFull = "monthsFull"
                         :monthsShort = "monthsShort"
@@ -922,8 +953,7 @@ onMounted(()=>{
                         :weekdaysNarrow = "weekdaysNarrow"
                         confirmDateOnSelect
                         removeCancelBtn
-                        removeOkBtn
-                        ref="nowCaseGuaranteeDOM" />
+                        removeOkBtn/>
                     </MDBCol>
                     <MDBCol md="12" class="mt-2">
                       <MDBInput 
@@ -959,9 +989,34 @@ onMounted(()=>{
                     </MDBCol>
                     
                   </MDBRow>
-                </MDBCol>
-              </MDBRow>
-                
+                </MDBAccordionItem>
+                <MDBAccordionItem v-for="(item,idx) in nowCaseData.case.data.items"
+                  :headerTitle="item.name"
+                  :collapseId="'item-' + idx">
+                  <MDBRow>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput size="sm" type="text" label="項目名稱" v-model="item.name" />
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput size="sm" type="text" label="項目類型" v-model="item.type" />
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="item.date" 
+                        format="YYYY-MM-DD" label="日期"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <div></div>
+                  </MDBRow>
+                </MDBAccordionItem>
+              </MDBAccordion>
             </MDBCol>
           </MDBRow>
         </MDBContainer>
@@ -992,5 +1047,20 @@ onMounted(()=>{
 .case-selected {
   border: 5px solid blue;
   
+}
+/* 基本資料頁收合時樣式 */
+.accordion-button[aria-controls="base"]{
+	color: white;
+	background-color: rgba(var(--mdb-danger-rgb),var(--mdb-bg-opacity))
+}
+/* Items展開時樣式 */
+.accordion-button:not(.collapsed){
+  color:white;
+  background-color: rgba(var(--mdb-warning-rgb),var(--mdb-bg-opacity));
+}
+/* 其餘Itemg收何時樣式 */
+.accordion-button{
+  color:white;
+  background-color: rgba(var(--mdb-info-rgb),var(--mdb-bg-opacity));
 }
 </style>
