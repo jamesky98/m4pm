@@ -70,9 +70,10 @@ getchecktoken().then(res=>{
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
   const leftCaseWidth = ref(12); // 12rem
-  const leftCaseHeight = ref(6); // 12rem
+  const leftCaseHeight = ref(10); // 8rem
   const topTimeToolH = ref(4); // 2rem
   const topTBarHeight = ref(2.5); // 2rem
+  const timeScaleHeight = ref(6); // 3rem
 
   // 時間軸參數
   const mouseX = ref("");
@@ -92,6 +93,12 @@ getchecktoken().then(res=>{
   const timebarLastDateNum = ref(""); // 結束日
   const timebarPtDateNum = ref(""); // 游標所在日
   const timebarToDayNum = ref(""); // 今日
+  const timebarToDayLeft = computed(()=>{
+    let toDayNum = timebarToDayNum.value;
+    let tBarWidth = timebarWidth.value
+    let passTime = timebarLastDateNum.value - timebarFirstDateNum.value;
+    return (toDayNum - timebarFirstDateNum.value) / (passTime) * tBarWidth;
+  }); // 今日之座標
 
   const timebarFirstDateStr = ref("");
   const timebarLastDateStr = ref("");
@@ -142,9 +149,10 @@ getchecktoken().then(res=>{
     sort: '',
     name: '未命名',
     type: -1,
-    date: ' '
+    date: ' ',
+    finisheddate: ' ',
   }; // 項目初始化資料
-  const nowCaseData = reactive({case: newCase});
+  const nowCaseData = reactive({case: JSON.parse(JSON.stringify(newCase))});
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
 
@@ -527,21 +535,52 @@ getchecktoken().then(res=>{
     TeDnum(時間軸結束日)
     tbarW(時間軸寬度px)
   */
-  function dateNum2LeftWidth(sDNum, eDNum, TsDnum, TeDnum, tbarW){
+  function dateNum2LeftWidth(sDNum, eDNum, todayNum ,TsDnum, TeDnum, tbarW){
     let res = {};
     let dDnum = (TeDnum - TsDnum);
+    let scale = tbarW / dDnum;
     if(sDNum){
       if(eDNum){
-        res.left = (sDNum - TsDnum) / dDnum * tbarW;
-        res.width = (eDNum - sDNum) / dDnum * tbarW;
+        res.left = (sDNum - TsDnum) * scale;
+        res.width = (eDNum - sDNum) * scale;
+        // 今日前
+        if((todayNum - sDNum) > 0){
+          if((todayNum - sDNum)<dDnum){
+            res.passWidth = (todayNum - sDNum) * scale;
+          }else{
+            res.passWidth = res.width
+          }
+        }else{
+          res.passWidth = 0;
+        }
+        // 今日後
+        if((eDNum - todayNum) > 0){
+          if((eDNum - todayNum)<dDnum){
+            res.featureWidth = (eDNum - todayNum) * scale;
+          }else{
+            res.featureWidth = res.width
+          }
+        }else{
+          res.featureWidth = 0;
+        }
       }else{
-        res.left = (sDNum - TsDnum) / dDnum * tbarW;
+        res.left = (sDNum - TsDnum) * scale;
+        res.passWidth = 0;
+        res.featureWidth = 0;
         res.width = 0;
       }
     }else{
       res.left = 0;
+      res.passWidth = 0;
+      res.featureWidth = 0;
       res.width = 0;
     }
+    // console.log(res)
+    return res
+  }
+  function date2shortStr(date){
+    let dateS = date.split('-');
+    let res = dateS[1] + '/' + dateS[2];
     return res
   }
 //#endregion 時間軸==========End
@@ -602,6 +641,7 @@ getchecktoken().then(res=>{
     for(let i=0;i<nowCaseData.case.data.items.length;i++){
       // 處理空日期
       nowCaseData.case.data.items[i].date = (nowCaseData.case.data.items[i].date)?nowCaseData.case.data.items[i].date:' ';
+      nowCaseData.case.data.items[i].finisheddate = (nowCaseData.case.data.items[i].finisheddate)?nowCaseData.case.data.items[i].finisheddate:' ';
     }
     saveCase({
       saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
@@ -634,15 +674,16 @@ getchecktoken().then(res=>{
           let endDateNum = new Date(myData[i].data.base.enddate + 'T23:59:59.000').valueOf();
           let guaranteeDateNum = new Date(myData[i].data.base.guarantee + 'T23:59:59.000').valueOf();
           // 執行期間
-          myData[i].tbarSize = dateNum2LeftWidth(startDateNum,endDateNum,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+          myData[i].tbarSize = dateNum2LeftWidth(startDateNum,endDateNum,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
           // 保固期間
-          myData[i].guarSize = dateNum2LeftWidth(endDateNum,guaranteeDateNum,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+          myData[i].guarSize = dateNum2LeftWidth(endDateNum,guaranteeDateNum,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
           // 各子項目(item)時間位置
           for(let j=0;j<myData[i].data.items.length;j++){
             // console.log(myData[i].data.items[j])
             if(myData[i].data.items[j].date){
-              let itemDateNum = new Date(myData[i].data.items[j].date + 'T00:00:00.000').valueOf();
-              myData[i].data.items[j].position = dateNum2LeftWidth(itemDateNum,null,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+              let itemDate = (myData[i].data.items[j].finisheddate && myData[i].data.items[j].finisheddate!==' ')?myData[i].data.items[j].finisheddate:myData[i].data.items[j].date;
+              let itemDateNum = new Date(itemDate + 'T00:00:00.000').valueOf();
+              myData[i].data.items[j].position = dateNum2LeftWidth(itemDateNum,null,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
             }else{
               myData[i].data.items[j].position = -1;
             }
@@ -654,12 +695,14 @@ getchecktoken().then(res=>{
   }
   // 新增案件(清空案件基本資料)
   function createNewCase(){
-    nowCaseData.case = newCase;
+    let newCaseContent = JSON.parse(JSON.stringify(newCase));
+    nowCaseData.case = newCaseContent;
     nowCaseData.case.id = -1;
   }
   // 新增項目
   function addItem(){
-    nowCaseData.case.data.items.push(newItem);
+    let newItemContent = JSON.parse(JSON.stringify(newItem));
+    nowCaseData.case.data.items.push(newItemContent);
   }
   // 轉成貨幣格式
   function toCurrency(num){
@@ -740,7 +783,7 @@ onMounted(()=>{
           <!-- 上方 固定功能列 -->
           <div :style="'height: ' + (topTimeToolH + topTBarHeight) + 'rem;'" class="w-100 d-flex">
             <!-- 左上 案件操作 固定寬度 -->
-            <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 border-end">
+            <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100">
               <div :style="'height: '+ topTimeToolH +'rem;'" class="border-bottom">
                 目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}}
               </div>
@@ -760,7 +803,7 @@ onMounted(()=>{
               </div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
-            <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem);'" class="h-100">
+            <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem);'" class="h-100 border-start">
               <div :style="'height: ' + topTimeToolH + 'rem;'" class="d-flex justify-content-between border-bottom overflow-hidden">
                 <div class="d-flex align-items-center">
                   <div>{{timebarFirstDateStr}}</div>
@@ -770,7 +813,7 @@ onMounted(()=>{
                 <div style="position:relative;" class="d-flex justify-content-center align-items-center flex-grow-1">
                   <div class="d-flex flex-column">
                     <div class="align-items-center">今日：{{timebarToDayStr}}</div>
-                    <div class="align-items-center">游標：{{timebarPtDateStr}}</div>
+                    <div v-show="isPointerShow" class="align-items-center">游標：{{timebarPtDateStr}}</div>
                   </div>
                   <div style="position:absolute;top:0.25rem; right: 1rem">
                     <MDBBtn size="sm" color="primary" @click.stop="goToDay()">今日</MDBBtn>
@@ -817,21 +860,31 @@ onMounted(()=>{
                 :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem);min-width: 4rem'" 
                 class="h-100 overflow-hidden d-flex flex-column">
                 <!-- 時程表 -->
-                <div style="position: relative;" class="w-100 flex-fill">
+                <div :style="'position: relative;height:' + timeScaleHeight + 'rem;'" class="w-100">
                   <!-- 執行期間 -->
+                  <!-- 過去 -->
                   <div v-show="x.tbarSize.width>0"
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.tbarSize.left + 'px;background-color: green; width:' + x.tbarSize.width + 'px;'" 
-                    class="border"></div>
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.tbarSize.left + 'px;background-color: #90f1ef; width:' + x.tbarSize.passWidth + 'px;'" 
+                    :class="'border-top border-bottom'"></div>
+                  <!-- 未來 -->
+                    <div v-show="x.tbarSize.width>0"
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + timebarToDayLeft + 'px;background-color: #f7d5df; width:' + x.tbarSize.featureWidth + 'px;'" 
+                    :class="'border-top border-bottom'"></div>
                   <!-- 保固期間 -->
                   <div v-show="x.guarSize.width>0"
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: yellow; width:' + x.guarSize.width + 'px;'" 
-                    class="border"></div>
+                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: #ffef9f; width:' + x.guarSize.width + 'px;'" 
+                    :class="'border-top border-bottom'"></div>
                   <!-- Items -->
                   <div v-for="(item, idx) in x.data.items" v-show="item.position.left>=0"
-                    :style="'position: absolute;height: 0;width:0;top:calc((100% / 2) - 0.5rem); left:' + item.position.left + 'px;'" 
-                    class="border">
-                    <!-- <div><i class="fab fa-android"></i></div> -->
-                    <i class="item-mark fas fa-i-cursor"></i>
+                    :style="'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + item.position.left + 'px;'">
+                    <div v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" :class="(item.finisheddate && item.finisheddate !== ' ')?'item-mark item-finished':'item-mark'">
+                      <div class="item-line"></div>
+                      <div class="item-tri"></div>
+                      <div class="item-label">{{ item.name }}</div>
+                      <div class="item-date">{{ date2shortStr(item.date) }}</div>
+                      <!-- <div><i class="fab fa-android"></i></div> -->
+                      <!-- <i class="item-mark fas fa-i-cursor"></i> -->
+                    </div>
                   </div>
                 </div>
                 
@@ -1004,7 +1057,20 @@ onMounted(()=>{
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
                         size="sm" v-model="item.date" 
-                        format="YYYY-MM-DD" label="日期"
+                        format="YYYY-MM-DD" label="規劃日期"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="item.finisheddate" 
+                        format="YYYY-MM-DD" label="完成日期"
                         :monthsFull = "monthsFull"
                         :monthsShort = "monthsShort"
                         :weekdaysFull = "weekdaysFull"
@@ -1042,12 +1108,14 @@ onMounted(()=>{
 #timepointerNow{
   border-left: 1px solid blue;
 }
+
 .boxline{
   pointer-events: none;
 }
+/* 選擇案件時顯示外框 */
 .case-selected {
-  border: 5px solid blue;
-  
+  /* border: 5px solid blue; */
+  box-shadow: 0 0 10px 5px blue inset;
 }
 /* 基本資料頁收合時樣式 */
 .accordion-button[aria-controls="base"]{
@@ -1064,11 +1132,79 @@ onMounted(()=>{
   color:white;
   background-color: rgba(var(--mdb-info-rgb),var(--mdb-bg-opacity));
 }
+
+/* item 標示樣式 */
 .item-mark{
+  position:relative;
+}
+.item-mark:hover{
+  z-index: 10;
+  filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.7))
+}
+
+.item-line{
   position: absolute;
-  font-size: 1.5rem;
-  color: darkturquoise;
-  top: -5px;
+  height: 1rem; width:1px;
+  border-left: 1px solid;
+  border-color: #dc4c64;
+}
+
+.item-tri::before,.item-tri::after{
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: solid transparent;
+}
+.item-tri::after{
+  border-width: 6px 2.5px 0 2.5px;
+  border-top-color: #ff9800;
+  top: -6px;
+  left: -2px;
+}
+.item-tri::before{
+  border-width: 9px 5.5px 0 5.5px;
+  border-top-color: #dc4c64;
+  top: -7.5px;
   left: -5px;
 }
+
+/* item 上方標註名稱樣式 */
+.item-label{
+  position: absolute;
+  font-size: 12px;
+  top: -2rem;
+  border: 1px solid #ff9800;
+  border-radius: 6px;
+  padding: 1px 2px;
+  background-color: white;
+  user-select:none;
+  white-space:nowrap;
+}
+/* item 下方標註日期樣式 */
+.item-date{
+  position: absolute;
+  font-size: 12px;
+  top: 1rem;
+  border: 1px solid #ff9800;
+  border-radius: 6px;
+  padding: 1px 2px;
+  background-color: white;
+  user-select:none;
+}
+
+.item-finished .item-line,
+.item-finished .item-date,
+.item-finished .item-label{
+  border-color:#69cb5c;
+}
+
+.item-finished .item-tri::before{
+  border-color:#69cb5c transparent transparent transparent;
+}
+
+.item-finished .item-tri::after{
+  border-color:#dafbe8 transparent transparent transparent;
+}
+
 </style>
