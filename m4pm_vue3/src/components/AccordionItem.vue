@@ -20,7 +20,8 @@ watch(() => props.modelValue,(newVal)=>{
     checked.value = false
   }
 })
-// console.log(props.modelValue)
+// console.log('modelValue',props.modelValue);
+// console.log('itemId',props.itemId);
 function checkchange(e){
   // console.log((e.target.value==='on')?props.itemId:'');
   emit('update:modelValue', (e.target.value==='on')?props.itemId:'')

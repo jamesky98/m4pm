@@ -622,7 +622,7 @@ getchecktoken().then(res=>{
         additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
         awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
 
-        
+        activeItem.value = ''
         // console.log(nowCaseData.case);
       });
     }
@@ -876,9 +876,12 @@ onMounted(()=>{
                     :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: #ffef9f; width:' + x.guarSize.width + 'px;'" 
                     :class="'border-top border-bottom'"></div>
                   <!-- Items -->
-                  <div v-for="(item, idx) in x.data.items" v-show="item.position.left>=0"
+                  <div v-for="(item, idx) in x.data.items" :key="idx" v-show="item.position.left>=0"
                     :style="'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + item.position.left + 'px;'">
-                    <div v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" :class="(item.finisheddate && item.finisheddate !== ' ')?'item-mark item-finished':'item-mark'">
+                    <div 
+                      v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
+                      :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + '-' +item.name + '-' + idx) && 'item-mark-selected']"
+                      @click.stop="activeItem=(x.id + '-' +item.name + '-' + idx)">
                       <div class="item-line"></div>
                       <div class="item-tri"></div>
                       <div class="item-label">{{ item.name }}</div>
@@ -949,7 +952,9 @@ onMounted(()=>{
             </MDBCol>
             <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'" class="px-0 overflow-auto">
               <!-- 基本資料 -->
-              <AccordionItem v-model="activeItem" item-id="base" item-name="基本資料" label-bg-color="#dc4c64">
+              <AccordionItem 
+                v-model="activeItem" :item-id="nowCaseData.case.id + 'base'" 
+                item-name="基本資料" label-bg-color="#dc4c64">
                 <template v-slot:itemText>
                   <MDBRow>
                     <MDBCol md="12" class="">
@@ -1048,7 +1053,7 @@ onMounted(()=>{
               <AccordionItem
                 v-for="(item,idx) in nowCaseData.case.data.items"
                 :item-name="item.name" label-bg-color="#54b4d3"
-                :item-id="item.name + '-' + idx"
+                :item-id="nowCaseData.case.id + '-' + item.name + '-' + idx"
                 :key="idx"
                 v-model="activeItem">
                 <template v-slot:itemText>
@@ -1142,7 +1147,7 @@ onMounted(()=>{
 .item-mark{
   position:relative;
 }
-.item-mark:hover{
+.item-mark-selected,.item-mark:hover{
   z-index: 10;
   filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.7))
 }
