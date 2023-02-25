@@ -1,6 +1,7 @@
 <script setup>
 import Footer1 from "../components/Footer.vue";
 import Navbar1 from "../components/Navbar.vue";
+import AccordionItem from "../components/AccordionItem.vue"
 import path from "path-browserify";
 import {
   MDBCol, MDBRow, MDBContainer,
@@ -65,7 +66,7 @@ getchecktoken().then(res=>{
   const alertColor = ref("primary");
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
-  const activeItem = ref('');
+  const activeItem = ref('base');
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -947,11 +948,9 @@ onMounted(()=>{
               </MDBRow>
             </MDBCol>
             <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'" class="px-0 overflow-auto">
-              <MDBAccordion v-model="activeItem">
-                <MDBAccordionItem
-                  headerTitle="基本資料"
-                  collapseId="base">
-                  <!-- 內容 -->
+              <!-- 基本資料 -->
+              <AccordionItem v-model="activeItem" item-id="base" item-name="基本資料" label-bg-color="#dc4c64">
+                <template v-slot:itemText>
                   <MDBRow>
                     <MDBCol md="12" class="">
                       案件編號：{{nowCaseData.case.id}}
@@ -1043,10 +1042,16 @@ onMounted(()=>{
                     </MDBCol>
                     
                   </MDBRow>
-                </MDBAccordionItem>
-                <MDBAccordionItem v-for="(item,idx) in nowCaseData.case.data.items"
-                  :headerTitle="item.name"
-                  :collapseId="'item-' + idx">
+                </template>
+              </AccordionItem>
+              <!-- 其他項目 -->
+              <AccordionItem
+                v-for="(item,idx) in nowCaseData.case.data.items"
+                :item-name="item.name" label-bg-color="#54b4d3"
+                :item-id="item.name + '-' + idx"
+                :key="idx"
+                v-model="activeItem">
+                <template v-slot:itemText>
                   <MDBRow>
                     <MDBCol md="12" class="mt-2">
                       <MDBInput size="sm" type="text" label="項目名稱" v-model="item.name" />
@@ -1082,8 +1087,8 @@ onMounted(()=>{
                     </MDBCol>
                     <div></div>
                   </MDBRow>
-                </MDBAccordionItem>
-              </MDBAccordion>
+                </template>
+              </AccordionItem>
             </MDBCol>
           </MDBRow>
         </MDBContainer>
