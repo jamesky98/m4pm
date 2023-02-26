@@ -1149,7 +1149,12 @@ onMounted(()=>{
 }
 .item-mark-selected,.item-mark:hover{
   z-index: 10;
-  filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.7))
+  filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.7));
+}
+
+.item-mark-selected .item-label,.item-mark:hover .item-label{
+  background-color:#dc4c64;
+  color: white;
 }
 
 .item-line{
