@@ -66,7 +66,7 @@ getchecktoken().then(res=>{
   const alertColor = ref("primary");
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
-  const activeItem = ref('base');
+  const activeItem = ref('');
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -497,8 +497,7 @@ getchecktoken().then(res=>{
   //   }               
   // }
   // 跳到今日
-  function goToDay(){
-    let toDayNum = timebarToDayNum.value;
+  function goToDay(toDayNum){
     let toDayObj = new Date(toDayNum);
     let toDayY = toDayObj.getFullYear();
     let toDayM = toDayObj.getMonth();
@@ -604,28 +603,37 @@ getchecktoken().then(res=>{
 
   // 選擇案件按鈕事件
   function getNowCaseBtn(e,id){
-    if(id){
-      $('.case-selected').removeClass('case-selected');
-      $('.casebox').has(e.target).children('.boxline').addClass('case-selected');
-      getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
-        // console.log('CaseById',res.data.getCaseById);
-        let getCase = res.data.getCaseById;
-        nowCaseData.case = getCase;
-        nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
-        
-        // nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
-        // nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
-        // nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
+    return new Promise((res,rej)=>{
+      if(id){
+        $('.case-selected').removeClass('case-selected');
+        $('.casebox').has(e.target).children('.boxline').addClass('case-selected');
+        getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
+          // console.log('CaseById',res.data.getCaseById);
+          let getCase = res.data.getCaseById;
+          nowCaseData.case = getCase;
+          nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
+          
+          // nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
+          // nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
+          // nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
 
-        purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
-        budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
-        additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
-        awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
-
-        activeItem.value = ''
-        // console.log(nowCaseData.case);
-      });
-    }
+          purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
+          budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
+          additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
+          awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
+          
+          if(activeItem.value.split('-')[0] !== id){
+            activeItem.value = '';
+          }
+          // console.log(nowCaseData.case);
+          return getCase
+        }).then(getCase=>{
+          res(getCase)
+        })
+      }else{
+        rej();
+      }
+    })
   }
 
   // 儲存目前案件
@@ -741,7 +749,39 @@ getchecktoken().then(res=>{
     }
     // console.log(nowCaseData.case)
   }
-
+  function itemsClick(e,caseId,itemId){
+    // 點選的案件不是目前案件時，先切換為目前案件，再設定目前item
+    // console.log('caseId',caseId,'itemId',itemId);
+    // console.log('nowId',nowCaseData.case.id);
+    if (nowCaseData.case.id === caseId){
+      activeItem.value = itemId;
+    }else{
+      getNowCaseBtn(e,caseId).then(res=>{
+        activeItem.value = itemId;
+      })
+    }
+  }
+  // 監聽activeItem
+  watch(activeItem,(getActiveItem)=>{
+    // console.log('getActiveItem',getActiveItem);
+    if(getActiveItem!==''){
+      let idInfo = getActiveItem.split('-');
+      let itemId = idInfo[2];
+      let item = nowCaseData.case.data.items[itemId];
+      if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
+        let usedDate = (item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date;
+        let itemDateNum = new Date(usedDate+ 'T00:00:00.000').valueOf();
+        // console.log('itemDateNum',itemDateNum);
+        if(itemDateNum<timebarFirstDateNum.value || itemDateNum>timebarLastDateNum.value){
+          // console.log('Out Tbar');
+          goToDay(itemDateNum);
+        }
+        // else{
+        //   console.log('In Tbar');
+        // }
+      }
+    }
+  })
 //#endregion 案件操作==========End
 
 function checkEvent(src){
@@ -817,7 +857,7 @@ onMounted(()=>{
                     <div v-show="isPointerShow" class="align-items-center">游標：{{timebarPtDateStr}}</div>
                   </div>
                   <div style="position:absolute;top:0.25rem; right: 1rem">
-                    <MDBBtn size="sm" color="primary" @click.stop="goToDay()">今日</MDBBtn>
+                    <MDBBtn size="sm" color="primary" @click.stop="goToDay(timebarToDayNum)">今日</MDBBtn>
                     <MDBBtn size="sm" color="primary" @click.stop="changeTimeBarType()">{{timebarStepList[timebarType]}}</MDBBtn>
                     <MDBBtn size="sm" color="primary" @click.stop="useTimePointer()">＋</MDBBtn>
                   </div>
@@ -881,11 +921,11 @@ onMounted(()=>{
                     <div 
                       v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
                       :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + '-' +item.name + '-' + idx) && 'item-mark-selected']"
-                      @click.stop="activeItem=(x.id + '-' +item.name + '-' + idx)">
+                      @click.stop="itemsClick($event,x.id,x.id + '-' +item.name + '-' + idx)">
                       <div class="item-line"></div>
                       <div class="item-tri"></div>
                       <div class="item-label">{{ item.name }}</div>
-                      <div class="item-date">{{ date2shortStr(item.date) }}</div>
+                      <div class="item-date">{{ date2shortStr((item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date)}}</div>
                       <!-- <div><i class="fab fa-android"></i></div> -->
                       <!-- <i class="item-mark fas fa-i-cursor"></i> -->
                     </div>
