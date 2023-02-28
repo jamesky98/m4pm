@@ -67,6 +67,8 @@ getchecktoken().then(res=>{
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
   const activeItem = ref('');
+  const splitSign = ref('#');
+  provide('splitSign',splitSign);
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -147,7 +149,6 @@ getchecktoken().then(res=>{
     parent_id: null,
   }; // 案件初始化資料
   const newItem = {
-    sort: '',
     name: '未命名',
     type: -1,
     date: ' ',
@@ -622,7 +623,7 @@ getchecktoken().then(res=>{
           additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
           awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
           
-          if(activeItem.value.split('-')[0] !== id){
+          if(activeItem.value.split(splitSign.value)[0] !== id){
             activeItem.value = '';
           }
           // console.log(nowCaseData.case);
@@ -665,10 +666,16 @@ getchecktoken().then(res=>{
   }
   // 更新總案件列表
   function updateAllCase(){
-    getAllCase().then(res=>{
-      allCases.value = res.data.getAllCase;
-      updateCaseTimeBar(allCases.value)
-    });
+    return new Promise((resolve,rej)=>{
+      getAllCase().then(res=>{
+        allCases.value = res.data.getAllCase;
+        updateCaseTimeBar(allCases.value);
+        return allCases.value
+      }).then(res=>{
+        resolve(res);
+      });
+    })
+    
   }
   function updateCaseTimeBar(myData){
     // let myData = allCases.value = res.data.getAllCase;
@@ -765,7 +772,7 @@ getchecktoken().then(res=>{
   watch(activeItem,(getActiveItem)=>{
     // console.log('getActiveItem',getActiveItem);
     if(getActiveItem!==''){
-      let idInfo = getActiveItem.split('-');
+      let idInfo = getActiveItem.split(splitSign.value);
       let itemId = idInfo[2];
       let item = nowCaseData.case.data.items[itemId];
       if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
@@ -782,33 +789,98 @@ getchecktoken().then(res=>{
       }
     }
   })
+  // 移動Array內容
+  function moveArray(array,from,to){
+    let moveitem = array.splice(from,1)[0];
+    array.splice(to,0,moveitem);
+  }
+  // item上移
+  function itemMoveUp(e){
+    // console.log('itemMoveUp')
+    // console.log(e)
+    let itemData = e.split(splitSign.value);
+    let itemOder = itemData[2];
+    let itemArrey = nowCaseData.case.data.items
+    // console.log(itemArrey)
+    // 未達頂
+    if(itemOder>0){
+      moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)-1);
+    }
+  }
+  // item下移
+  function itemMoveDown(e){
+    // console.log('itemMoveDown')
+    // console.log(e)
+    let itemData = e.split(splitSign.value);
+    let itemOder = itemData[2];
+    let itemArrey = nowCaseData.case.data.items
+    // console.log(itemArrey)
+    // 未到底
+    if(itemOder<itemArrey.length){
+      moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+1);
+    }
+  }
 //#endregion 案件操作==========End
 
 function checkEvent(src){
   console.log(src)
 }
 
+
 onMounted(()=>{
   // 視窗調整大小事件
-  // window.addEventListener('resize',movetimepointer);
   window.addEventListener('resize',updateTBar);
-  // $(window).resize(function() {
-  //   console.log('resize')
-  //     rtime = new Date();
-  //     console.log('rtime',rtime)
-  //     console.log('timeout',timeout)
-  //     if (timeout === false) {
-  //         timeout = true;
-  //         console.log('timeout if false')
-  //         setTimeout(resizeend, delta);
-  //     }
-  // });
 
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
   initFirstDate();
-  updateAllCase();
+  updateAllCase().then(res=>{
+    // 拖曳事件
+    const boxes = document.querySelectorAll('.casebox');
+    // console.log(boxes)
+    boxes.forEach((box) => {
+      box.addEventListener("dragstart", (e) => {
+        console.log('dragging')
+        e.target.classList.add("dragging");
+      });
+      box.addEventListener("dragend", (e) => {
+        console.log('dragend')
+        e.target.classList.remove("dragging");
+      });
+    });
+
+    const containers = document.querySelectorAll(".casebox");
+    containers.forEach((container) => {
+      // 進入
+      container.addEventListener("dragenter", (e) => {
+        console.log('enter',e.target)
+        // if($(e.target).hasClass('casebox')){
+          let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
+          casebox.addClass("dhover");
+          e.stopPropagation();
+          e.preventDefault();
+        // }
+      });
+      // 離開
+      container.addEventListener("dragleave", (e) => {
+        console.log('dragleave',e.target);
+        if($(e.target).hasClass('casebox')){
+          // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
+          $(e.target).removeClass("dhover");
+          e.stopPropagation();
+          e.preventDefault(); 
+        }
+        
+      });
+      // 放下
+      container.addEventListener('drop',(e) => {
+          console.log('drop',e.target);
+          e.target.removeClass('dhover');
+      });
+
+    });
+  });
 });
 
 </script>
@@ -825,10 +897,11 @@ onMounted(()=>{
           <div :style="'height: ' + (topTimeToolH + topTBarHeight) + 'rem;'" class="w-100 d-flex">
             <!-- 左上 案件操作 固定寬度 -->
             <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100">
-              <div :style="'height: '+ topTimeToolH +'rem;'" class="border-bottom">
-                目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}}
+              <div :style="'height: '+ topTimeToolH +'rem;'" class="d-flex justify-content-center align-items-center p-2 border-bottom">
+                <!-- 篩選區 -->
+                <MDBInput size="sm" type="text" class=""/>
               </div>
-              <div :style="'height: '+ topTBarHeight +'rem;'" class="d-flex">
+              <div :style="'height: '+ topTBarHeight +'rem;'" class="d-flex justify-content-end align-items-center">
                 <!-- 增加案件 -->
                 <div>
                   <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="createNewCase">
@@ -891,8 +964,12 @@ onMounted(()=>{
                         
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
-              :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" class="d-flex w-100 casebox border" 
-              @click.prevent="getNowCaseBtn($event,x.id)" @dblclick.stop="isPointerFix=true">
+              :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" 
+              :class="[x.id + '-' + x.code,'d-flex w-100 casebox border']" 
+              @click.prevent="getNowCaseBtn($event,x.id)" 
+              @dblclick.stop="isPointerFix=true"
+              draggable="true"
+              >
               <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 p-2 border-end" >
                 <div>{{ x.code }}</div>
                 <div>{{ x.data.base.operator }}</div>
@@ -920,7 +997,7 @@ onMounted(()=>{
                     :style="'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + item.position.left + 'px;'">
                     <div 
                       v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
-                      :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + '-' +item.name + '-' + idx) && 'item-mark-selected']"
+                      :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + splitSign +item.name + splitSign + idx) && 'item-mark-selected']"
                       @click.stop="itemsClick($event,x.id,x.id + '-' +item.name + '-' + idx)">
                       <div class="item-line"></div>
                       <div class="item-tri"></div>
@@ -970,23 +1047,27 @@ onMounted(()=>{
         <!-- 右側 功能欄 固定寬度 -->
         <MDBContainer :style="'width: '+ rightToolWidth +'rem;'" class="h-100">
           <MDBRow class="h-100">
-            <MDBCol col="12" :style="'height: ' + topTimeToolH + 'rem;'" class="">
+            <MDBCol col="12">
               <MDBRow>
                 <MDBCol col="12">功能按鈕</MDBCol>
-                <MDBCol col="12" class="d-flex">
-                  <div><MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn></div>
-                  <!-- 增加案件 -->
-                  <div>
-                    <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="addItem">
-                      <i class="fas fa-plus"></i>
-                    </MDBBtn>
-                  </div>
-                  <!-- 刪除案件 -->
-                  <div>
-                    <MDBBtn class="" size="sm" color="primary" @click.stop="">
-                      <i class="fas fa-minus"></i>
-                    </MDBBtn>
-                  </div>    
+                <MDBCol col="12" >
+                  <MDBRow class="justify-content-start">
+                    <MDBCol>
+                      <!-- 儲存 -->
+                      <MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn>
+                      <!-- 增加案件 -->
+                      <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="addItem">
+                        <i class="fas fa-plus"></i>
+                      </MDBBtn>
+                      <!-- 刪除案件 -->
+                      <MDBBtn class="" size="sm" color="primary" @click.stop="">
+                        <i class="fas fa-minus"></i>
+                      </MDBBtn>
+                    </MDBCol>
+                    <MDBCol class="col-12">
+                      目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}} 
+                    </MDBCol>
+                  </MDBRow>
                 </MDBCol>
               </MDBRow>
             </MDBCol>
@@ -1093,9 +1174,14 @@ onMounted(()=>{
               <AccordionItem
                 v-for="(item,idx) in nowCaseData.case.data.items"
                 :item-name="item.name" label-bg-color="#54b4d3"
-                :item-id="nowCaseData.case.id + '-' + item.name + '-' + idx"
+                :item-id="nowCaseData.case.id + splitSign + item.name + splitSign + idx"
+                :is-items="true"
                 :key="idx"
-                v-model="activeItem">
+                v-model="activeItem"
+                @moveitemup="itemMoveUp($event)"
+                @moveitemdown="itemMoveDown($event)"
+                draggable="true"
+                >
                 <template v-slot:itemText>
                   <MDBRow>
                     <MDBCol md="12" class="mt-2">
@@ -1260,6 +1346,25 @@ onMounted(()=>{
 
 .item-finished .item-tri::after{
   border-color:#dafbe8 transparent transparent transparent;
+}
+
+.caselistbox{
+  background: white;
+}
+
+.casebox {
+  background: lightblue;
+}
+.casebox.dragging {
+  background: lightgreen;
+  cursor:move;
+}
+
+.casebox.dhover {
+  background: red;
+}
+.dhover *{
+  pointer-events: none;
 }
 
 </style>

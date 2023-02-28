@@ -1,17 +1,23 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, inject } from "vue";
 import { computed } from "@vue/reactivity";
+import {
+  MDBBtn, 
+} from 'mdb-vue-ui-kit';
 const checked = ref(false)
 const itemContextH = ref('300px');
 
 const props = defineProps({
   itemName: {type: String, default: '未命名'},
-  labelBgColor :{type: String, default: 'white'},
-  labelTextColor :{type: String, default: 'white'},
+  labelBgColor: {type: String, default: 'white'},
+  labelTextColor: {type: String, default: 'white'},
+  isItems: {type: Boolean, default: false},
   itemId: {type: String},
   modelValue: {type:String},
 });
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue','moveitemup','moveitemdown']);
+
+const splitSign=inject('splitSign');
 
 watch(() => props.modelValue,(newVal)=>{
   if(newVal===props.itemId){
@@ -47,6 +53,19 @@ function checkchange(e){
         {{ props.itemName }}
       </div>
       <!-- 符號部分 -->
+      <!-- 上移 -->
+      <MDBBtn v-if="props.isItems"
+        style="right: 5.2rem; "
+        :class="['pos-absolute','curser-pointer','move-btn']"
+        @click.stop="emit('moveitemup',props.itemId)"
+        ><i class="fas fa-long-arrow-alt-up"></i></MDBBtn>
+      <!-- 下移 -->
+      <MDBBtn v-if="props.isItems"
+        style="right: 3.5rem; "
+        :class="['pos-absolute','curser-pointer','move-btn']"
+        @click.stop="emit('moveitemdown',props.itemId)"
+        ><i class="fas fa-long-arrow-alt-down"></i></MDBBtn>
+      <!-- 展開符號 -->
       <label 
         style="right: 2rem;"
         :class="['pos-absolute','curser-pointer']">
@@ -116,5 +135,13 @@ function checkchange(e){
 }
 .item-open{
   transform: rotate(-180deg)
+}
+.move-btn{
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1rem;
+  padding: 0.1rem 0.25rem;
+  color: white;
+  background-color: #3b71ca;
 }
 </style>
