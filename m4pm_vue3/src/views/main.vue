@@ -69,6 +69,7 @@ getchecktoken().then(res=>{
   const activeItem = ref('');
   const splitSign = ref('#');
   provide('splitSign',splitSign);
+  const dragkey = ref(0);
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -77,6 +78,7 @@ getchecktoken().then(res=>{
   const topTimeToolH = ref(4); // 2rem
   const topTBarHeight = ref(2.5); // 2rem
   const timeScaleHeight = ref(6); // 3rem
+  const caseDataToolHeight = ref(5); // 3rem
 
   // 時間軸參數
   const mouseX = ref("");
@@ -793,6 +795,7 @@ getchecktoken().then(res=>{
   function moveArray(array,from,to){
     let moveitem = array.splice(from,1)[0];
     array.splice(to,0,moveitem);
+    return array
   }
   // item上移
   function itemMoveUp(e){
@@ -805,6 +808,7 @@ getchecktoken().then(res=>{
     // 未達頂
     if(itemOder>0){
       moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)-1);
+      dragkey.value=dragkey.value+1
     }
   }
   // item下移
@@ -825,43 +829,55 @@ getchecktoken().then(res=>{
 
 //#region 拖曳操作==========Start
   let nowDragLocation = null;
+  let nowDragSource = null;
   // 被拖曳者
   function caseBoxDragstart(e){
-    console.log('dragging')
+    // console.log('dragging')
     e.target.classList.add("dragging");
+    nowDragSource=e.target;
   }
   function caseBoxDragend(e){
-    console.log('dragend')
+    // console.log('dragend')
     e.target.classList.remove("dragging");
   }
   // 被放置者
   function caseBoxDragenter(e){
-    console.log('enter',e);
-    console.log('isCaseBox:', $(e.target).hasClass('casebox'));
-    e.target.parentElement
-    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
-    // console.log($(e.target).parent('.casebox'));
-    // nowDragLocation = casebox[0];
-    
-    // nowDragLocation=e.target;
-    // console.log('nowDragLocation',nowDragLocation);
-    // $(nowDragLocation).addClass("dhover");
-    // console.log('add red');
+    if($(e.currentTarget).hasClass('casebox')){
+      if(nowDragLocation===e.currentTarget){
+        $(nowDragLocation).addClass("dhover");
+        // console.log('add red');
+      }else{
+        $(nowDragLocation).removeClass("dhover");
+        $(e.currentTarget).addClass("dhover");
+        // console.log('remove red');
+        nowDragLocation=e.currentTarget;
+      }
+    }
   }
-  function caseBoxDragleave(e){
-    console.log('dragleave',e.target);
-    console.log('isCaseBox:', $(e.target).hasClass('casebox'));
-    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
-    // console.log('parentDOM',casebox[0],'nowDragLocation',nowDragLocation);
-    // if(e.target === nowDragLocation){
-    //   $(e.target).removeClass("dhover");
-    //   console.log('remove red');
-    // }
+  function caseBoxDragover(e){3
+    e.preventDefault();
   }
   function caseBoxDrop(e){
-    // console.log('drop',e.target);
-    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
-    // casebox.removeClass("dhover");
+    // console.log('drop');
+    if($(e.currentTarget).hasClass('casebox')){
+      $(e.currentTarget).removeClass("dhover");
+      // console.log('nowDragSource',nowDragSource.id); // from
+      // console.log('e.currentTarget',e.currentTarget.id); // to
+      let fromId = nowDragSource.id.split(splitSign.value)[0];
+      let toId = e.currentTarget.id.split(splitSign.value)[0];
+
+      new Promise((resolve,rej)=>{
+        resolve(toRaw(allCases.value))
+      }).then(res=>{
+        let newArray = moveArray(res,fromId,toId);
+        allCases.value = newArray;
+        // console.log(allCases.value)
+        return newArray
+      }).then(res=>{
+        dragkey.value=dragkey.value+1;
+      });
+      
+    }
   }
 
 
@@ -960,19 +976,24 @@ onMounted(()=>{
           <div id="caselistbox" 
             :style="'position: relative; height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" 
             class="w-100 overflow-auto border-top"
+            :key="dragkey"
             @dblclick.stop="isPointerFix=true">
                         
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
+              :id="i + splitSign + 'casebox'"
               :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" 
               :class="[x.id + '-' + x.code,'d-flex w-100 casebox border']" 
+              :key="i"
               @click.prevent="getNowCaseBtn($event,x.id)" 
               @dblclick.stop="isPointerFix=true"
               draggable="true"
+              droppable="true"
               @dragstart="caseBoxDragstart($event)"
               @dragend="caseBoxDragend($event)"
-              @dragenter="caseBoxDragenter($event)"
-              @dragleave="caseBoxDragleave($event)"
+              @dragenter.stop="caseBoxDragenter($event)"
+              @dragover="caseBoxDragover($event)"
+              @drop.prevent="caseBoxDrop($event)"
               >
               <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 p-2 border-end" >
                 <div>{{ x.code }}</div>
@@ -1002,13 +1023,11 @@ onMounted(()=>{
                     <div 
                       v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
                       :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + splitSign +item.name + splitSign + idx) && 'item-mark-selected']"
-                      @click.stop="itemsClick($event,x.id,x.id + '-' +item.name + '-' + idx)">
+                      @click.stop="itemsClick($event,x.id,x.id + splitSign +item.name + splitSign + idx)">
                       <div class="item-line"></div>
                       <div class="item-tri"></div>
                       <div class="item-label">{{ item.name }}</div>
                       <div class="item-date">{{ date2shortStr((item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date)}}</div>
-                      <!-- <div><i class="fab fa-android"></i></div> -->
-                      <!-- <i class="item-mark fas fa-i-cursor"></i> -->
                     </div>
                   </div>
                 </div>
@@ -1049,9 +1068,9 @@ onMounted(()=>{
           
         </div>
         <!-- 右側 功能欄 固定寬度 -->
-        <MDBContainer :style="'width: '+ rightToolWidth +'rem;'" class="h-100">
+        <MDBContainer :style="{width: rightToolWidth +'rem'}" class="h-100">
           <MDBRow class="h-100">
-            <MDBCol col="12">
+            <MDBCol col="12" :style="{height: caseDataToolHeight +'rem'}">
               <MDBRow>
                 <MDBCol col="12">功能按鈕</MDBCol>
                 <MDBCol col="12" >
@@ -1075,7 +1094,7 @@ onMounted(()=>{
                 </MDBCol>
               </MDBRow>
             </MDBCol>
-            <MDBCol col="12" :style="'height: calc(100% - ' + topTimeToolH + 'rem);'" class="px-0 overflow-auto">
+            <MDBCol col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="px-0 overflow-auto">
               <!-- 基本資料 -->
               <AccordionItem 
                 v-model="activeItem" :item-id="nowCaseData.case.id + 'base'" 
@@ -1365,7 +1384,7 @@ onMounted(()=>{
 }
 
 .casebox.dhover {
-  background: red;
+  opacity: 0.5;
 }
 .dhover *{
   pointer-events: none;
