@@ -822,6 +822,51 @@ getchecktoken().then(res=>{
   }
 //#endregion 案件操作==========End
 
+
+//#region 拖曳操作==========Start
+  let nowDragLocation = null;
+  // 被拖曳者
+  function caseBoxDragstart(e){
+    console.log('dragging')
+    e.target.classList.add("dragging");
+  }
+  function caseBoxDragend(e){
+    console.log('dragend')
+    e.target.classList.remove("dragging");
+  }
+  // 被放置者
+  function caseBoxDragenter(e){
+    console.log('enter',e);
+    console.log('isCaseBox:', $(e.target).hasClass('casebox'));
+    e.target.parentElement
+    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
+    // console.log($(e.target).parent('.casebox'));
+    // nowDragLocation = casebox[0];
+    
+    // nowDragLocation=e.target;
+    // console.log('nowDragLocation',nowDragLocation);
+    // $(nowDragLocation).addClass("dhover");
+    // console.log('add red');
+  }
+  function caseBoxDragleave(e){
+    console.log('dragleave',e.target);
+    console.log('isCaseBox:', $(e.target).hasClass('casebox'));
+    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
+    // console.log('parentDOM',casebox[0],'nowDragLocation',nowDragLocation);
+    // if(e.target === nowDragLocation){
+    //   $(e.target).removeClass("dhover");
+    //   console.log('remove red');
+    // }
+  }
+  function caseBoxDrop(e){
+    // console.log('drop',e.target);
+    // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
+    // casebox.removeClass("dhover");
+  }
+
+
+//#endregion 拖曳操作==========End
+
 function checkEvent(src){
   console.log(src)
 }
@@ -835,52 +880,7 @@ onMounted(()=>{
   document.onmousemove = movetimepointer;
   // 設定初始時間軸起始點
   initFirstDate();
-  updateAllCase().then(res=>{
-    // 拖曳事件
-    const boxes = document.querySelectorAll('.casebox');
-    // console.log(boxes)
-    boxes.forEach((box) => {
-      box.addEventListener("dragstart", (e) => {
-        console.log('dragging')
-        e.target.classList.add("dragging");
-      });
-      box.addEventListener("dragend", (e) => {
-        console.log('dragend')
-        e.target.classList.remove("dragging");
-      });
-    });
-
-    const containers = document.querySelectorAll(".casebox");
-    containers.forEach((container) => {
-      // 進入
-      container.addEventListener("dragenter", (e) => {
-        console.log('enter',e.target)
-        // if($(e.target).hasClass('casebox')){
-          let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
-          casebox.addClass("dhover");
-          e.stopPropagation();
-          e.preventDefault();
-        // }
-      });
-      // 離開
-      container.addEventListener("dragleave", (e) => {
-        console.log('dragleave',e.target);
-        if($(e.target).hasClass('casebox')){
-          // let casebox = $(e.target).hasClass('casebox')?$(e.target):$(e.target).parent('.casebox');
-          $(e.target).removeClass("dhover");
-          e.stopPropagation();
-          e.preventDefault(); 
-        }
-        
-      });
-      // 放下
-      container.addEventListener('drop',(e) => {
-          console.log('drop',e.target);
-          e.target.removeClass('dhover');
-      });
-
-    });
-  });
+  updateAllCase();
 });
 
 </script>
@@ -969,6 +969,10 @@ onMounted(()=>{
               @click.prevent="getNowCaseBtn($event,x.id)" 
               @dblclick.stop="isPointerFix=true"
               draggable="true"
+              @dragstart="caseBoxDragstart($event)"
+              @dragend="caseBoxDragend($event)"
+              @dragenter="caseBoxDragenter($event)"
+              @dragleave="caseBoxDragleave($event)"
               >
               <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 p-2 border-end" >
                 <div>{{ x.code }}</div>
@@ -1030,8 +1034,8 @@ onMounted(()=>{
               <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
             </div>
 
-
-
+            
+            <!-- @drop.self="caseBoxDrop($event)" -->
             <!-- <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
             <p>時間軸起點：{{timebarStart}}</p>
