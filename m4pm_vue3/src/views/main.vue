@@ -609,7 +609,7 @@ getchecktoken().then(res=>{
     return new Promise((res,rej)=>{
       if(id){
         $('.case-selected').removeClass('case-selected');
-        $('.casebox').has(e.target).children('.boxline').addClass('case-selected');
+        $('.casebox').has(e.target).addClass('case-selected');
         getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
           // console.log('CaseById',res.data.getCaseById);
           let getCase = res.data.getCaseById;
@@ -628,6 +628,9 @@ getchecktoken().then(res=>{
           if(activeItem.value.split(splitSign.value)[0] !== id){
             activeItem.value = '';
           }
+          let caseOder = allCases.value.findIndex(x=>x.id===getCase.id);
+          allCases.value[caseOder].data.items = getCase.data.items;
+          updateCaseTimeBar(allCases.value)
           // console.log(nowCaseData.case);
           return getCase
         }).then(getCase=>{
@@ -797,31 +800,46 @@ getchecktoken().then(res=>{
     array.splice(to,0,moveitem);
     return array
   }
-  // item上移
-  function itemMoveUp(e){
-    // console.log('itemMoveUp')
+  // item移動
+  function itemMove(e,delta){
+    console.log('itemMove')
     // console.log(e)
     let itemData = e.split(splitSign.value);
+    let caseId = itemData[0];
     let itemOder = itemData[2];
     let itemArrey = nowCaseData.case.data.items
-    // console.log(itemArrey)
+    let caseOder = allCases.value.findIndex(x=>parseInt(x.id)===parseInt(caseId));
+    let caseArray = allCases.value[caseOder].data.items;
+    let beforActiveItem = activeItem.value;
+    // console.log(itemOder+delta)
     // 未達頂
-    if(itemOder>0){
-      moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)-1);
-      dragkey.value=dragkey.value+1
-    }
-  }
-  // item下移
-  function itemMoveDown(e){
-    // console.log('itemMoveDown')
-    // console.log(e)
-    let itemData = e.split(splitSign.value);
-    let itemOder = itemData[2];
-    let itemArrey = nowCaseData.case.data.items
-    // console.log(itemArrey)
-    // 未到底
-    if(itemOder<itemArrey.length){
-      moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+1);
+    if((parseInt(itemOder)+parseInt(delta))>0 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
+      new Promise((resolve,rej)=>{
+        let newArray = moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+delta);
+        // console.log('now-Caseitem:',newArray)
+        resolve(newArray)
+      }).then(res=>{
+        // 同步時間軸上的items
+        // let newArray = moveArray(caseArray,parseInt(itemOder),parseInt(itemOder)+delta);
+        allCases.value[caseOder].data.items = res;
+        // console.log('all-Caseitem:',res)
+        return res
+      }).then(res=>{
+        // 更新時間軸
+        dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
+        // console.log('targetItem',e,'nowItem',beforActiveItem)
+        if(beforActiveItem!==''){
+          if(e===beforActiveItem){
+            // 目前item與觸發item相同
+            // console.log('same')
+            activeItem.value = itemData[0] +  splitSign.value + itemData[1] +  splitSign.value + (parseInt(itemOder)+delta);
+          }else{
+            // 目前item與觸發item不同
+            // console.log('diffrent')
+          }
+        }
+        // console.log('activeItem',activeItem.value)
+      })
     }
   }
 //#endregion 案件操作==========End
@@ -874,7 +892,7 @@ getchecktoken().then(res=>{
         // console.log(allCases.value)
         return newArray
       }).then(res=>{
-        dragkey.value=dragkey.value+1;
+        dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
       });
       
     }
@@ -1201,8 +1219,8 @@ onMounted(()=>{
                 :is-items="true"
                 :key="idx"
                 v-model="activeItem"
-                @moveitemup="itemMoveUp($event)"
-                @moveitemdown="itemMoveDown($event)"
+                @moveitemup="itemMove($event,-1)"
+                @moveitemdown="itemMove($event,1)"
                 draggable="true"
                 >
                 <template v-slot:itemText>
@@ -1272,7 +1290,7 @@ onMounted(()=>{
   pointer-events: none;
 }
 /* 選擇案件時顯示外框 */
-.case-selected {
+.case-selected .boxline{
   /* border: 5px solid blue; */
   box-shadow: 0 0 10px 5px blue inset;
 }
