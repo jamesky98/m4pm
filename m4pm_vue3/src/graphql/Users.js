@@ -16,6 +16,7 @@ const LOGINMU = gql`
         active
         role
         user_name2
+        setting
       }
     }
   }
@@ -32,6 +33,7 @@ const GETALLUSERs = gql`
       role
       user_name2
       user_updated_time
+      setting
     }
   }
 `;
@@ -46,6 +48,7 @@ const GETUSER = gql`
       active
       role
       user_name2
+      setting
     }
   }
 `;
@@ -60,6 +63,7 @@ const GETUSERBYNAME = gql`
       active
       role
       user_name2
+      setting
     }
   }
 `;
@@ -93,6 +97,7 @@ const SIGNUPMU = gql`
         active
         role
         user_name2
+        setting
       }
     }
   }
@@ -106,6 +111,7 @@ const UPDATEUSER = gql`
     $userMail: String
     $active: Int
     $role: Int
+    $setting: JSONObject
   ) {
     updateUser(
       user_id: $userId
@@ -114,6 +120,7 @@ const UPDATEUSER = gql`
       user_mail: $userMail
       active:$active
       role:$role
+      setting: $setting
     ) {
       user_id
       user_name
@@ -122,6 +129,7 @@ const UPDATEUSER = gql`
       active
       role
       user_name2
+      setting
     }
   }
 `;
@@ -153,6 +161,7 @@ const GETNOWUSER = gql`
       active
       role
       user_name2
+      setting
     }
   }
 `;

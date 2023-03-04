@@ -31,6 +31,7 @@ import { getUserId } from "./utils.js";
 // resolvers
 import Query from "./resolvers/Query.js";
 import Mutation from "./resolvers/Mutation.js";
+import m4case from "./resolvers/m4case.js";
 
 import * as dotenv from 'dotenv';
 import * as dotenvExpand from 'dotenv-expand';
@@ -57,6 +58,8 @@ console.log("WorkPath: ", __dirname);
 const resolvers = {
   Query,
   Mutation,
+  m4case,
+  Upload: GraphQLUpload,
 };
 
 const prisma = new PrismaClient();

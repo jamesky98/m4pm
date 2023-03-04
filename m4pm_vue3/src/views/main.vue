@@ -2,12 +2,14 @@
 import Footer1 from "../components/Footer.vue";
 import Navbar1 from "../components/Navbar.vue";
 import AccordionItem from "../components/AccordionItem.vue"
+import CaseBar from "../components/CaseBar.vue"
+import upload from "../components/upload.vue"
 import path from "path-browserify";
 import {
   MDBCol, MDBRow, MDBContainer,
   MDBInput, MDBTextarea, MDBSelect, 
   MDBDatepicker, MDBSwitch, MDBCheckbox, 
-  MDBBtn, MDBPopconfirm,
+  MDBBtn, MDBPopconfirm, MDBBtnClose,
   MDBAccordion, MDBAccordionItem,
   MDBSpinner,
   MDBAnimation,
@@ -22,6 +24,7 @@ import { computed } from "@vue/reactivity";
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import UsersGQL from "../graphql/Users";
 import CaseGQL from "../graphql/Case";
+import ToolsGQL from "../graphql/Tools";
 import { errorHandle, logIn, logOut, toTWDate } from '../methods/User';
 import jQuery from "jquery";
 Object.assign(window, { $: jQuery, jQuery });
@@ -34,17 +37,28 @@ getchecktoken().then(res=>{
 });
 
 //#region 取得權限==========Start
+  const myUserId = ref("");
   const myUserName = ref("");
   const myUserRole = ref("");
+  const usersetting= ref({});
 
   const { onResult: getNowUser, refetch: refgetNowUser } = useQuery(UsersGQL.GETNOWUSER);
   getNowUser(result => {
     if (!result.loading && result && result.data.getNowUser) {
       let getData = result.data.getNowUser;
+      // console.log('getData',getData);
+      myUserId.value = parseInt(getData.user_id);
       myUserName.value = getData.user_name;
       myUserRole.value = getData.role;
+      if(getData.setting){
+        usersetting.value = getData.setting;
+        timebarType.value = (getData.setting.timetype)?parseInt(getData.setting.timetype):0;
+      }else{
+        usersetting.value = {};
+        timebarType.value = 0;
+      }
     }
-  });refgetNowUser();
+  });
 
   const rGroupSetting = inject("rGroupSetting");
   const rGroup = computed(() => {
@@ -67,6 +81,7 @@ getchecktoken().then(res=>{
   const updateKey = ref(0);
   const publicPath = inject('publicPath');
   const activeItem = ref('');
+  provide('activeItem',activeItem);
   const splitSign = ref('#');
   provide('splitSign',splitSign);
   const dragkey = ref(0);
@@ -77,7 +92,7 @@ getchecktoken().then(res=>{
   const leftCaseHeight = ref(10); // 8rem
   const topTimeToolH = ref(4); // 2rem
   const topTBarHeight = ref(2.5); // 2rem
-  const timeScaleHeight = ref(6); // 3rem
+  const timeScaleHeight = ref(7); // 3rem
   const caseDataToolHeight = ref(5); // 3rem
 
   // 時間軸參數
@@ -104,6 +119,7 @@ getchecktoken().then(res=>{
     let passTime = timebarLastDateNum.value - timebarFirstDateNum.value;
     return (toDayNum - timebarFirstDateNum.value) / (passTime) * tBarWidth;
   }); // 今日之座標
+  provide('timebarToDayLeft',timebarToDayLeft);
 
   const timebarFirstDateStr = ref("");
   const timebarLastDateStr = ref("");
@@ -123,10 +139,6 @@ getchecktoken().then(res=>{
   const tbarPointer = ref();
   const tbarItem = ref([]);
 
-  var rtime;
-  var timeout = false;
-  var delta = 200;
-
   // 日曆元件設定
   const monthsFull =['一月,','二月,','三月,','四月,','五月,','六月,','七月,','八月,','九月,','十月,','十一月,','十二月,'];
   const monthsShort= monthsFull;
@@ -145,18 +157,47 @@ getchecktoken().then(res=>{
         startdate: '',
         enddate: '',
         guarantee: '',
+        baseTable: '',
       },
       items: [],
     },
     parent_id: null,
   }; // 案件初始化資料
   const newItem = {
+    id: -1,
     name: '未命名',
     type: -1,
     date: ' ',
     finisheddate: ' ',
   }; // 項目初始化資料
   const nowCaseData = reactive({case: JSON.parse(JSON.stringify(newCase))});
+  const nowCaseDataDL= computed(()=>{
+    let nowData = nowCaseData.case.data;
+    let result={
+      base:{baseTable: undefined},
+      items:[],
+    };
+    if(nowData.base){
+      if (nowData.base.baseTable !== "") {
+        result.base.baseTable=publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.base.baseTable;
+      }
+    };
+    if(nowData.items.length>0){
+      for(let i=0;i<nowData.items.length;i++){
+        result.items.push([]);
+        if(nowData.items[i].upload){
+          for(let j=0;j<nowData.items[i].uploads.length;j++){
+            if (nowData.items[i].upload[j] !== "") {
+              result.items[i].push(publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id + "/" + nowData.items[i].uploads[j]);
+            } else {
+              result.items[i].push(undefined);
+            }
+          }
+        }
+      }
+    }
+    return result
+  })
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
 
@@ -164,6 +205,8 @@ getchecktoken().then(res=>{
   const budgetAM = ref(""); // 預算金額
   const additionAM = ref(""); // 增購金額
   const awardPrice = ref(""); // 決標金額
+
+
 
   // Case參數==============End
 
@@ -328,7 +371,14 @@ getchecktoken().then(res=>{
     }else if(type===3){
 
     }
-    updateTBar();
+
+    usersetting.value ={ ...usersetting.value ,timetype:parseInt(timebarType.value)};
+    updateTBar().then(res=>{
+      return saveUserSet({
+        userId: myUserId.value,
+        setting: usersetting.value
+      });
+    });
   }
   // 更新時間軸
   async function updateTBar(){
@@ -486,19 +536,6 @@ getchecktoken().then(res=>{
     }
     return classStr
   }
-  // 視窗小整大小(停用)
-  // function resizeend() {
-  //   // console.log('resizeend')
-  //   // console.log('resizeend',new Date(),rtime,delta)
-  //   if (new Date() - rtime < delta) {
-  //     // console.log('waiting...')
-  //     setTimeout(resizeend, delta);
-  //   } else {
-  //     // console.log('buildTimeStep')
-  //     timeout = false;
-  //     updateTBar();
-  //   }               
-  // }
   // 跳到今日
   function goToDay(toDayNum){
     let toDayObj = new Date(toDayNum);
@@ -608,8 +645,13 @@ getchecktoken().then(res=>{
   function getNowCaseBtn(e,id){
     return new Promise((res,rej)=>{
       if(id){
+        // console.log('e.target',e.target);
         $('.case-selected').removeClass('case-selected');
-        $('.casebox').has(e.target).addClass('case-selected');
+        if($(e.target).hasClass( "casebox-content" )){
+          $(e.target).addClass('case-selected');
+        }else{
+          $('.casebox-content').has(e.target).addClass('case-selected');
+        }
         getCaseById({getCaseByIdId: parseInt(id)}).then(res=>{
           // console.log('CaseById',res.data.getCaseById);
           let getCase = res.data.getCaseById;
@@ -628,8 +670,24 @@ getchecktoken().then(res=>{
           if(activeItem.value.split(splitSign.value)[0] !== id){
             activeItem.value = '';
           }
-          let caseOder = allCases.value.findIndex(x=>x.id===getCase.id);
-          allCases.value[caseOder].data.items = getCase.data.items;
+          // let caseOder = allCases.value.findIndex(x=>x.id===getCase.id);
+          for(let i=0;i<allCases.value.length;i++){
+            if(allCases.value[i].id===getCase.id){
+              allCases.value[i].data.items = getCase.data.items;
+              break;
+            }else{
+              if(allCases.value[i].other_m4case){
+                let subCases = allCases.value[i].other_m4case;
+                for(let j=0;j<subCases.length;j++){
+                  if(subCases[j].id===getCase.id){
+                    subCases[j].data.items = getCase.data.items;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          // allCases.value[caseOder].data.items = getCase.data.items;
           updateCaseTimeBar(allCases.value)
           // console.log(nowCaseData.case);
           return getCase
@@ -663,7 +721,7 @@ getchecktoken().then(res=>{
       code: (nowCaseData.case.code)?nowCaseData.case.code:null,
       active: (nowCaseData.case.active)?nowCaseData.case.active:1,
       data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
-      parentId: (nowCaseData.case.parent_id)?nowCaseData.case.parent_id:null
+      parentId: (nowCaseData.case.parent_id)?parseInt(nowCaseData.case.parent_id):null
     }).then(res=>{
       // 更新
       updateAllCase();
@@ -673,7 +731,18 @@ getchecktoken().then(res=>{
   function updateAllCase(){
     return new Promise((resolve,rej)=>{
       getAllCase().then(res=>{
-        allCases.value = res.data.getAllCase;
+        // 依照使用者設定排序
+        let inputArray = res.data.getAllCase;
+        let result;
+        if(usersetting.value.casesort){
+          result = sortCaseByUser(inputArray,usersetting.value.casesort);
+        }else{
+          result = inputArray;
+        }
+        // console.log('result',result)
+        return result
+      }).then(res=>{
+        allCases.value = res;
         updateCaseTimeBar(allCases.value);
         return allCases.value
       }).then(res=>{
@@ -682,6 +751,7 @@ getchecktoken().then(res=>{
     })
     
   }
+  // 更新案件值間軸物件
   function updateCaseTimeBar(myData){
     // let myData = allCases.value = res.data.getAllCase;
       // allCases.value = myData;
@@ -709,10 +779,83 @@ getchecktoken().then(res=>{
               myData[i].data.items[j].position = -1;
             }
           }
+          // 增加附屬案件各子項目(item)時間位置
+          if(myData[i].other_m4case){
+            // console.log('other_m4case==========')
+            let subCases = myData[i].other_m4case;
+            // console.log('subCases',subCases)
+            // 對每個附屬案件
+            for(let k=0; k<subCases.length ;k++){
+              let subStartDateNum = new Date(subCases[k].data.base.startdate + 'T00:00:00.000').valueOf();
+              let subEndDateNum = new Date(subCases[k].data.base.enddate + 'T23:59:59.000').valueOf();
+              let subGuaranteeDateNum = new Date(subCases[k].data.base.guarantee + 'T23:59:59.000').valueOf();
+              // 執行期間
+              subCases[k].tbarSize = dateNum2LeftWidth(subStartDateNum,subEndDateNum,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+              // 保固期間
+              subCases[k].guarSize = dateNum2LeftWidth(subEndDateNum,subGuaranteeDateNum,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+
+              // 各子項目(item)時間位置
+              let subCaseItems = subCases[k].data.items;
+              for(let l=0;l<subCaseItems.length;l++){
+                if(subCaseItems[l].date){
+                  let itemDate = (subCaseItems[l].finisheddate && subCaseItems[l].finisheddate!==' ')?subCaseItems[l].finisheddate:subCaseItems[l].date;
+                  let itemDateNum = new Date(itemDate + 'T00:00:00.000').valueOf();
+                  subCaseItems[l].position = dateNum2LeftWidth(itemDateNum,null,timebarToDayNum.value,timebarFirstDateNum.value,timebarLastDateNum.value,timebarWidth.value);
+                }else{
+                  subCaseItems[l].position = -1;
+                }
+              }
+            }
+          }
         }
       }
-      console.log(myData);
+      // console.log(myData);
       // console.log('allCases',allCases.value);
+  }
+  // 依照使用者設定排序
+  function sortCaseByUser(orgArray, setting){
+    // console.log('before',orgArray)
+    // console.log('setting',setting)
+    let result;
+    for(let i=0;i<orgArray.length;i++){
+      if(orgArray[i].other_m4case.length>0){
+        let subCases = orgArray[i].other_m4case;
+        subCases.sort((a,b)=>{
+          let ai = setting.indexOf(parseInt(a.id));
+          let bi = setting.indexOf(parseInt(b.id));
+          return ai - bi;
+        })
+      }
+    }
+    result = orgArray.sort((a,b)=>{
+      // console.log('a.id',a.id,'b.id',b.id)
+      let ai = setting.indexOf(parseInt(a.id));
+      let bi = setting.indexOf(parseInt(b.id));
+      // console.log('ai',ai,'bi',bi,ai>bi)
+      return ai - bi;
+    })
+    // console.log('userSort',setting)
+    return result;
+  }
+  // 記錄使用者排序
+  function recordCaseSort(orgArray){
+    let result=[];
+    console.log('orgArray',orgArray)
+    for(let i=0;i<orgArray.length;i++){
+      result.push(parseInt(orgArray[i].id));
+      console.log('result-'+i,result)
+      if(orgArray[i].other_m4case.length>0){
+        console.log('sub')
+        let subCases = orgArray[i].other_m4case;
+        console.log('subCases',subCases)
+        for(let j=0;j<subCases.length;j++){
+          console.log('subCases-'+'j',subCases[j].id)
+          result.push(parseInt(subCases[j].id));
+        }
+      }
+    }
+    console.log('sort-result',result)
+    return result
   }
   // 新增案件(清空案件基本資料)
   function createNewCase(){
@@ -723,6 +866,17 @@ getchecktoken().then(res=>{
   // 新增項目
   function addItem(){
     let newItemContent = JSON.parse(JSON.stringify(newItem));
+    let idmax=-1;
+    if(nowCaseData.case.data.items.length>0){
+      for(let i=0;i<nowCaseData.case.data.items.length;i++){
+        if(parseInt(nowCaseData.case.data.items[i].id)>idmax){
+          idmax=parseInt(nowCaseData.case.data.items[i].id);
+        }
+      } 
+      newItemContent.id=idmax+1;
+    }else{
+      newItemContent.id=0;
+    }
     nowCaseData.case.data.items.push(newItemContent);
   }
   // 轉成貨幣格式
@@ -780,17 +934,20 @@ getchecktoken().then(res=>{
       let idInfo = getActiveItem.split(splitSign.value);
       let itemId = idInfo[2];
       let item = nowCaseData.case.data.items[itemId];
-      if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
-        let usedDate = (item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date;
-        let itemDateNum = new Date(usedDate+ 'T00:00:00.000').valueOf();
-        // console.log('itemDateNum',itemDateNum);
-        if(itemDateNum<timebarFirstDateNum.value || itemDateNum>timebarLastDateNum.value){
-          // console.log('Out Tbar');
-          goToDay(itemDateNum);
+      // console.log(item)
+      if(item){
+        if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
+          let usedDate = (item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date;
+          let itemDateNum = new Date(usedDate+ 'T00:00:00.000').valueOf();
+          // console.log('itemDateNum',itemDateNum);
+          if(itemDateNum<timebarFirstDateNum.value || itemDateNum>timebarLastDateNum.value){
+            // console.log('Out Tbar');
+            goToDay(itemDateNum);
+          }
+          // else{
+          //   console.log('In Tbar');
+          // }
         }
-        // else{
-        //   console.log('In Tbar');
-        // }
       }
     }
   })
@@ -842,6 +999,10 @@ getchecktoken().then(res=>{
       })
     }
   }
+  // 紀錄使用者案件排序
+  const { mutate: saveUserSet, onDone: saveUserSetOnDone, onError: saveUserSetError } = useMutation(
+    UsersGQL.UPDATEUSER);
+
 //#endregion 案件操作==========End
 
 
@@ -892,6 +1053,15 @@ getchecktoken().then(res=>{
         // console.log(allCases.value)
         return newArray
       }).then(res=>{
+        console.log('usersetting.casesort',usersetting.value.casesort)
+        usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
+        return usersetting.value
+      }).then(res=>{
+        return saveUserSet({
+          userId: myUserId.value,
+          setting: usersetting.value
+        });
+      }).then(res=>{
         dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
       });
       
@@ -901,10 +1071,103 @@ getchecktoken().then(res=>{
 
 //#endregion 拖曳操作==========End
 
+//#region 檔案上傳==========Start
+  const uploadType = ref("");
+  function uploadBtn(inputId) {
+    // 由按鈕啟動檔案選擇器
+    uploadType.value = inputId;
+    const inputDOM = document.getElementById("AllUpload");
+    inputDOM.setAttribute("accept","");
+    // console.log('inputId',inputId)
+    switch (inputId) {
+      case "baseTable":
+        inputDOM.setAttribute("accept",".docx");
+        break;
+      case "itemUpload":
+        inputDOM.setAttribute("accept","");
+        break;
+    }
+    inputDOM.click();
+  }
+  // 檔案選擇器選擇事件
+  const upFile = ref();
+  async function uploadChenge(e) {
+    upFile.value = e.target.files[0];
+    let subpath = "01_Case/" + nowCaseData.case.id;
+    let newName = "";
+    if (!uploadType.value) {
+      return;
+    }
+    switch (uploadType.value) {
+      case "baseTable":
+        newName = "baseTable" + path.extname(e.target.value);
+        break;
+      case "itemUpload":
+        let nowData = nowCaseData.case.data;
+        subpath = "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id;
+        newName = e.target.value;
+        break;
+    }
+    await uploadFile({
+      file: upFile.value,
+      subpath: subpath,
+      newfilename: newName,
+    });
+  }
+  // 上傳檔案
+  const { mutate: uploadFile, onDone: uploadFileOnDone, onError: uploadFileonError } = useMutation(
+    ToolsGQL.UPLOADFILE
+  );
+  uploadFileOnDone((result) => {
+    // console.log("uploadFile")
+    // 儲存(更新)上傳紀錄資料
+    if (!uploadType.value) {
+      return;
+    }
+    switch (uploadType.value) {
+      case "baseTable":
+        nowCaseData.case.data.base.baseTable = result.data.uploadFile.filename;
+        saveCaseBtn();
+        break;
+      case "itemUpload":
+        nowCaseData.case.data.base.baseTable = result.data.uploadFile.filename;
+        saveCaseBtn();
+        break;
+    }
+    let inputDOM;
+    inputDOM = document.getElementById("AllUpload");
+    inputDOM.value = "";
+  });
+  uploadFileonError(e=>{errorHandle(e,infomsg,alert1)});
+
+//#endregion 檔案上傳==========End
+
+//#region 檔案下載==========Start
+  function downloadFile(fileUrl,fileName){
+    let x = new XMLHttpRequest();
+    // console.log(fileUrl);
+    x.open("GET", fileUrl+'?t=' + new Date().getTime(), true);
+    x.responseType = 'blob';
+    x.onload = function(e){
+      //建構blob的URL
+      let href = URL.createObjectURL(x.response);
+      //建立下載元素
+      let link = document.createElement("a");
+      document.body.appendChild(link);
+      // console.log(href);
+      link.href = href;
+      link.download = fileName;
+      // console.log(fileName);
+      link.click();
+      // 完成後刪除元素
+      document.body.removeChild(link);
+    };
+    x.send();
+  }
+//#endregion 檔案下載==========End
 function checkEvent(src){
   console.log(src)
 }
-
 
 onMounted(()=>{
   // 視窗調整大小事件
@@ -912,13 +1175,19 @@ onMounted(()=>{
 
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
-  // 設定初始時間軸起始點
-  initFirstDate();
-  updateAllCase();
+  refgetNowUser().then(res=>{
+    // 設定初始時間軸起始點
+    initFirstDate();
+    updateAllCase();
+  });
+  
 });
 
 </script>
 <template>
+  <!-- 檔案上傳用 -->
+  <input type="file" id="AllUpload" @change="uploadChenge($event)" style="display: none" />
+  <!-- 主體 -->
   <MDBContainer fluid class="h-100">
     <MDBRow class="h-100 flex-column flex-nowrap">
       <!-- 導覽列 -->
@@ -992,86 +1261,60 @@ onMounted(()=>{
           </div>
           <!-- 下方 浮動案件列表 -->
           <div id="caselistbox" 
-            :style="'position: relative; height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" 
-            class="w-100 overflow-auto border-top"
+            :style="'height: calc(100% - ' + (topTimeToolH + topTBarHeight) + 'rem);'" 
+            class="pos-relative w-100 overflow-auto border-top"
             :key="dragkey"
             @dblclick.stop="isPointerFix=true">
                         
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
               :id="i + splitSign + 'casebox'"
-              :style="'position: relative; height: ' + leftCaseHeight + 'rem;'" 
-              :class="[x.id + '-' + x.code,'d-flex w-100 casebox border']" 
+              class="w-100 casebox"
               :key="i"
-              @click.prevent="getNowCaseBtn($event,x.id)" 
               @dblclick.stop="isPointerFix=true"
               draggable="true"
-              droppable="true"
               @dragstart="caseBoxDragstart($event)"
               @dragend="caseBoxDragend($event)"
               @dragenter.stop="caseBoxDragenter($event)"
               @dragover="caseBoxDragover($event)"
               @drop.prevent="caseBoxDrop($event)"
               >
-              <div :style="'width: ' + leftCaseWidth + 'rem;'" class="h-100 p-2 border-end" >
-                <div>{{ x.code }}</div>
-                <div>{{ x.data.base.operator }}</div>
-              </div>
-              <div 
-                :style="'position: relative; width: calc(100% - ' + leftCaseWidth + 'rem);min-width: 4rem'" 
-                class="h-100 overflow-hidden d-flex flex-column">
-                <!-- 時程表 -->
-                <div :style="'position: relative;height:' + timeScaleHeight + 'rem;'" class="w-100">
-                  <!-- 執行期間 -->
-                  <!-- 過去 -->
-                  <div v-show="x.tbarSize.width>0"
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.tbarSize.left + 'px;background-color: #90f1ef; width:' + x.tbarSize.passWidth + 'px;'" 
-                    :class="'border-top border-bottom'"></div>
-                  <!-- 未來 -->
-                    <div v-show="x.tbarSize.width>0"
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + timebarToDayLeft + 'px;background-color: #f7d5df; width:' + x.tbarSize.featureWidth + 'px;'" 
-                    :class="'border-top border-bottom'"></div>
-                  <!-- 保固期間 -->
-                  <div v-show="x.guarSize.width>0"
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem); left:' + x.guarSize.left + 'px;background-color: #ffef9f; width:' + x.guarSize.width + 'px;'" 
-                    :class="'border-top border-bottom'"></div>
-                  <!-- Items -->
-                  <div v-for="(item, idx) in x.data.items" :key="idx" v-show="item.position.left>=0"
-                    :style="'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + item.position.left + 'px;'">
-                    <div 
-                      v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
-                      :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===x.id + splitSign +item.name + splitSign + idx) && 'item-mark-selected']"
-                      @click.stop="itemsClick($event,x.id,x.id + splitSign +item.name + splitSign + idx)">
-                      <div class="item-line"></div>
-                      <div class="item-tri"></div>
-                      <div class="item-label">{{ item.name }}</div>
-                      <div class="item-date">{{ date2shortStr((item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date)}}</div>
-                    </div>
-                  </div>
-                </div>
-                
-                
-                <!-- 執行進度 -->
-                <div style="position: relative;" class="w-100 flex-fill">
-              
-                  <div 
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: red; width:0'" 
-                    class="border"></div>  
-                </div>
-                
-                <!-- 經費使用 -->
-                <div style="position: relative;" class="w-100 flex-fill">
-                  
-                  <div 
-                    :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: yellow; width:0'" 
-                    class="border"></div>
+              <div
+                v-if="!x.parent_id"
+                :class="['pos-relative d-flex flex-wrap w-100 border-start border-end']" 
+                >
+                <!-- 主案件 -->
+                <CaseBar
+                  :left-case-width="leftCaseWidth"
+                  :left-case-height="leftCaseHeight"
+                  :time-scale-height="timeScaleHeight"
+                  :case-data="x"
+                  :items-click="itemsClick"
+                  :date2short-str="date2shortStr"
+                  :get-now-case-btn="getNowCaseBtn"
+                  :split-sign="splitSign"
+                  :show-sub="x.subshow?true:false"
+                  @showsubcase="x.subshow=$event"
+                  >
+                </CaseBar>
+                <!-- 子案件 -->
+                <div v-show="x.subshow" class="w-100">
+                  <CaseBar v-for="(xsub, isub) in x.other_m4case"
+                    :is-sub-case="true"
+                    :left-case-width="leftCaseWidth"
+                    :left-case-height="leftCaseHeight"
+                    :left-case-padding-left="1"
+                    :time-scale-height="timeScaleHeight"
+                    :case-data="xsub"
+                    :items-click="itemsClick"
+                    :date2short-str="date2shortStr"
+                    :get-now-case-btn="getNowCaseBtn"
+                    :split-sign="splitSign"
+                    >
+                  </CaseBar>
                 </div>
               </div>
-              <!-- 框線 -->
-              <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
             </div>
-
-            
             <!-- @drop.self="caseBoxDrop($event)" -->
             <!-- <p>下方 浮動案件列表</p>
             <p>時間操作：滑鼠({{ mouseX }}, {{ mouseY }})，游標({{ pointerX }}, {{ pointerY }})</p>
@@ -1096,11 +1339,11 @@ onMounted(()=>{
                     <MDBCol>
                       <!-- 儲存 -->
                       <MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn>
-                      <!-- 增加案件 -->
+                      <!-- 增加項目 -->
                       <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="addItem">
                         <i class="fas fa-plus"></i>
                       </MDBBtn>
-                      <!-- 刪除案件 -->
+                      <!-- 刪除項目 -->
                       <MDBBtn class="" size="sm" color="primary" @click.stop="">
                         <i class="fas fa-minus"></i>
                       </MDBBtn>
@@ -1112,6 +1355,7 @@ onMounted(()=>{
                 </MDBCol>
               </MDBRow>
             </MDBCol>
+            <!-- 右側資訊欄 -->
             <MDBCol col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="px-0 overflow-auto">
               <!-- 基本資料 -->
               <AccordionItem 
@@ -1126,16 +1370,32 @@ onMounted(()=>{
                     <MDBCol md="6" class="mt-2">
                       <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
                     </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBInput size="sm" type="text" label="主案件" v-model="nowCaseData.case.parent_id" />
+                    </MDBCol>
                     <div></div>
                     <MDBCol md="12" class="mt-4">
                       <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
                     </MDBCol>
                     <MDBCol md="12" class="mt-2">
-                      <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
-                    </MDBCol>
-                    <MDBCol md="12" class="mt-2">
                       <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
                     </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
+                    </MDBCol>
+                    <!-- 上傳檔案===Start -->
+                    <MDBCol col="12" class="mt-2">
+                      <upload
+                        label="基本資料表"
+                        label-id="baseTable"
+                        :model-value="nowCaseData.case.data.base.baseTable"
+                        :dl-path="nowCaseDataDL.base.baseTable"
+                        :r-group="rGroup[2]"
+                        :upload-btn="uploadBtn"
+                        :download-file="downloadFile"
+                      ></upload>
+                    </MDBCol>
+                    <!-- 上傳檔案===End -->
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
                         size="sm" v-model="nowCaseData.case.data.base.startdate" 
@@ -1231,6 +1491,7 @@ onMounted(()=>{
                     <MDBCol md="12" class="mt-2">
                       <MDBInput size="sm" type="text" label="項目類型" v-model="item.type" />
                     </MDBCol>
+                    <!-- 規劃日期 -->
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
                         size="sm" v-model="item.date" 
@@ -1244,6 +1505,7 @@ onMounted(()=>{
                         removeCancelBtn
                         removeOkBtn/>
                     </MDBCol>
+                    <!-- 完成日期 -->
                     <MDBCol md="6" class="mt-2">
                       <MDBDatepicker 
                         size="sm" v-model="item.finisheddate" 
@@ -1258,6 +1520,24 @@ onMounted(()=>{
                         removeOkBtn/>
                     </MDBCol>
                     <div></div>
+                    <!-- 上傳資料 -->
+                    <MDBCol md="12" class="mt-2 pb-2 border">
+                      <!-- 上傳檔案===Start -->
+                      <MDBRow>
+                        <MDBCol v-for="(upload, iup) in item.uploads" col="12" class="mt-2">
+                          <upload
+                            :label="'檔案-'+iup"
+                            label-id="itemUpload"
+                            :model-value="upload"
+                            :dl-path="nowCaseDataDL.items[idx].uploads[iup]"
+                            :r-group="rGroup[2]"
+                            :upload-btn="uploadBtn"
+                            :download-file="downloadFile"
+                          ></upload>
+                        </MDBCol>
+                      </MDBRow>
+                      <!-- 上傳檔案===End -->
+                    </MDBCol>
                   </MDBRow>
                 </template>
               </AccordionItem>
@@ -1292,7 +1572,7 @@ onMounted(()=>{
 /* 選擇案件時顯示外框 */
 .case-selected .boxline{
   /* border: 5px solid blue; */
-  box-shadow: 0 0 10px 5px blue inset;
+  box-shadow: 0 0 5px 3px blue inset;
 }
 /* 基本資料頁收合時樣式 */
 .accordion-button[aria-controls="base"]{
@@ -1314,14 +1594,19 @@ onMounted(()=>{
 .item-mark{
   position:relative;
 }
-.item-mark-selected,.item-mark:hover{
+.case-selected .item-mark-selected,.item-mark:hover{
   z-index: 10;
   filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.7));
 }
 
-.item-mark-selected .item-label,.item-mark:hover .item-label{
+.case-selected .item-mark-selected .item-label{
   background-color:#dc4c64;
   color: white;
+}
+
+.item-mark:hover .item-label{
+  background-color:#76ee55;
+  color: rgb(2, 14, 249);
 }
 
 .item-line{
@@ -1389,23 +1674,60 @@ onMounted(()=>{
   border-color:#dafbe8 transparent transparent transparent;
 }
 
-.caselistbox{
+/* .caselistbox{
   background: white;
-}
+} */
 
-.casebox {
-  background: lightblue;
-}
 .casebox.dragging {
   background: lightgreen;
   cursor:move;
 }
 
 .casebox.dhover {
-  opacity: 0.5;
+  opacity: 0.8;
 }
 .dhover *{
   pointer-events: none;
 }
-
+.casebox{
+  border-top:solid;
+  border-image:linear-gradient(90deg,rgba(200, 0, 0,1),rgba(90,90,90,0.2),rgba(0,0,200,1)) 100% 0;
+  /* border-color: white; */
+  border-width:4px;
+}
+.casebox:last-child{
+  border-bottom: solid;
+  border-width:4px;
+}
+.casebox-content.subcase{
+  /* border-top: 1px solid blue; */
+  border:none;
+  background-image:linear-gradient(to right, #009ac9 33%, rgba(255,255,255,0) 0%);
+  background-position:top;
+  background-size:6px 2px;
+  background-repeat:repeat-x;
+  border-image:none;
+}
+.pos-relative{
+  position: relative;
+}
+.pos-absolute{
+  position: absolute;
+}
+.curser-pointer{
+  cursor: pointer;
+}
+.transtition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.item-open{
+  transform: rotate(-180deg)
+}
+.btn-upload-close {
+  position: absolute;
+  top: 0.25em;
+  right: 0.25em;
+}
 </style>

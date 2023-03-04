@@ -33,6 +33,7 @@ type Mutation {
       active: Int
       role: Int
       user_name2: String
+      setting: JSONObject
     ): user
     delUser(user_id: Int!): user
     chkUserByName(user_name: String): user
@@ -50,6 +51,13 @@ type Mutation {
       parent_id: Int
     ): m4case
   # ================
+  # upload
+    uploadFile(
+      file: Upload!,
+      subpath:String!
+      newfilename: String!,
+    ): File!
+  # ================
 }
 
 type AuthPayload {
@@ -66,6 +74,7 @@ type user {
   role: Int
   user_name2: String!
   user_updated_time: Date
+  setting: JSONObject
 }
 
 type m4case {

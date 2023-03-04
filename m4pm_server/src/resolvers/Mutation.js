@@ -203,7 +203,11 @@ async function changePASSWord(parent, args, context) {
  */
 async function getAllCase(parent, args, context) {
   if (!chkUserId(context)){return}
-  const result = await context.prisma.m4case.findMany();
+  const result = await context.prisma.m4case.findMany(
+    {
+      where:{ parent_id:null}
+    }
+  );
 
   return result
 }
@@ -238,6 +242,37 @@ async function saveCaseById(parent, args, context) {
   return result
 }
 
+async function uploadFile(parent, args, context) {
+  if (!chkUserId(context)) {
+    throw new Error("未經授權");
+  }
+  const { filename, mimetype, encoding, createReadStream } = await args.file;
+  const stream = createReadStream();
+  
+  // 檢查資料夾是否存在
+  const subpath = path.join(
+    __dirname,
+    PUBLIC_PATH,
+    args.subpath
+  );
+
+  const upfilename = args.newfilename;
+  const fileresult = await fsPromises.mkdir(
+    subpath,
+    {recursive: true,},
+    (err) => {if (err) {console.log("error occurred in creating new directory", err);
+        return;
+  }});
+
+  // console.log(fileresult);
+  // 開始寫入檔案
+  const out = fs.createWriteStream(path.join(subpath, upfilename));
+  stream.pipe(out);
+  await finished(out);
+
+  // console.log("upload finished!!");
+  return { filename: upfilename, mimetype: mimetype, encoding: encoding };
+}
 
 export default {
   checktoken,
@@ -252,4 +287,5 @@ export default {
   getAllCase,
   getCaseById,
   saveCaseById,
+  uploadFile,
 };

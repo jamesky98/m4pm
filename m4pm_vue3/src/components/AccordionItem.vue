@@ -5,7 +5,7 @@ import {
   MDBBtn, 
 } from 'mdb-vue-ui-kit';
 const checked = ref(false)
-const itemContextH = ref('300px');
+const itemContextH = ref('600px');
 
 const props = defineProps({
   itemName: {type: String, default: '未命名'},
@@ -99,12 +99,7 @@ function checkchange(e){
 .text-noselect{
   user-select:none;
 }
-.pos-relative{
-  position: relative;
-}
-.pos-absolute{
-  position: absolute;
-}
+
 .radius-label-2 {
   border-radius: 0.5rem 0.5rem 0 0;
 }
@@ -122,20 +117,11 @@ function checkchange(e){
   color: white;
   background-color: #999999;
 }
-.curser-pointer{
-  cursor: pointer;
-}
-.transtition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
+
 .text-green-500{
   color: yellow;
 }
-.item-open{
-  transform: rotate(-180deg)
-}
+
 .move-btn{
   width: 1.6rem;
   height: 1.6rem;

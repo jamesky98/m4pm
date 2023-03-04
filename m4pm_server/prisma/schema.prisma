@@ -18,6 +18,7 @@ model user {
   active            Int       @default(0)
   role              Int       @default(0)
   user_name2        String    @db.VarChar(255)
+  setting           Json?
 }
 
 model m4case {
