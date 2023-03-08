@@ -154,10 +154,15 @@ getchecktoken().then(res=>{
     finished: 0,
     data: {
       base: {
-        startdate: '',
-        enddate: '',
-        guarantee: '',
+        startdate: ' ',
+        enddate: ' ',
+        guarantee: ' ',
         baseTable: '',
+      },
+      schedule:{
+        startdate: ' ',
+        enddate: ' ',
+        list:[],
       },
       items: [],
     },
@@ -667,10 +672,19 @@ getchecktoken().then(res=>{
           additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
           awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
           
+          if(!nowCaseData.case.data.schedule){
+            nowCaseData.case.data.schedule ={
+              startdate: ' ',
+              enddate: ' ',
+              list:[],
+            }
+          }
+
           if(activeItem.value.split(splitSign.value)[0] !== id){
             activeItem.value = '';
           }
-          // let caseOder = allCases.value.findIndex(x=>x.id===getCase.id);
+          
+          // 更新時間軸item
           for(let i=0;i<allCases.value.length;i++){
             if(allCases.value[i].id===getCase.id){
               allCases.value[i].data.items = getCase.data.items;
@@ -687,7 +701,7 @@ getchecktoken().then(res=>{
               }
             }
           }
-          // allCases.value[caseOder].data.items = getCase.data.items;
+          
           updateCaseTimeBar(allCases.value)
           // console.log(nowCaseData.case);
           return getCase
@@ -1359,7 +1373,7 @@ onMounted(()=>{
             <MDBCol col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="px-0 overflow-auto">
               <!-- 基本資料 -->
               <AccordionItem 
-                v-model="activeItem" :item-id="nowCaseData.case.id + 'base'" 
+                v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'base'" 
                 item-name="基本資料" label-bg-color="#dc4c64">
                 <template v-slot:itemText>
                   <MDBRow>
@@ -1468,6 +1482,46 @@ onMounted(()=>{
                         @update:model-value="dataFromCurrency('award_price',$event)"/>
                     </MDBCol>
                     
+                  </MDBRow>
+                </template>
+              </AccordionItem>
+              <AccordionItem 
+                v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'schedule'" 
+                item-name="進度" label-bg-color="#dc4c64">
+                <template v-slot:itemText>
+                  <MDBRow>
+                    <!-- 進度起算日 -->
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseData.case.data.schedule.startdate" 
+                        format="YYYY-MM-DD" label="進度起算日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <!-- 進度截止日 -->
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseData.case.data.schedule.enddate" 
+                        format="YYYY-MM-DD" label="進度截止日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <!-- 進度列表 -->
+                    <MDBCol md="12" class="mt-2">
+                      
+                    </MDBCol>
                   </MDBRow>
                 </template>
               </AccordionItem>
