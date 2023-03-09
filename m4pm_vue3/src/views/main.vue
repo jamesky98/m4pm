@@ -963,6 +963,10 @@ getchecktoken().then(res=>{
           // }
         }
       }
+    }else{
+      // 清空被選擇之item
+      console.log($('.item-mark-selected'));
+      $('.item-mark-selected').removeClass('item-mark-selected');
     }
   })
   // 移動Array內容
@@ -1528,7 +1532,8 @@ onMounted(()=>{
               <!-- 其他項目 -->
               <AccordionItem
                 v-for="(item,idx) in nowCaseData.case.data.items"
-                :item-name="item.name" label-bg-color="#54b4d3"
+                :item-name="item.name" 
+                :label-bg-color="(item.finisheddate && item.finisheddate!==' ')?'#69CB5C':'#54b4d3'"
                 :item-id="nowCaseData.case.id + splitSign + item.name + splitSign + idx"
                 :is-items="true"
                 :key="idx"
