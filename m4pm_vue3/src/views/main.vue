@@ -86,9 +86,10 @@ getchecktoken().then(res=>{
   provide('splitSign',splitSign);
   const dragkey = ref(0);
 
+
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
-  const leftCaseWidth = ref(12); // 12rem
+  const leftCaseWidth = ref(14); // 12rem
   const leftCaseHeight = ref(10); // 8rem
   const topTimeToolH = ref(4); // 2rem
   const topTBarHeight = ref(2.5); // 2rem
@@ -148,6 +149,7 @@ getchecktoken().then(res=>{
 
   // Case參數==============Start
   const allCases = ref([]); // 全案件資料
+  const nowItemULidx = ref('');
   const newCase = {
     id: '',
     code: '',
@@ -193,7 +195,7 @@ getchecktoken().then(res=>{
         if(nowData.items[i].upload){
           for(let j=0;j<nowData.items[i].uploads.length;j++){
             if (nowData.items[i].upload[j] !== "") {
-              result.items[i].push(publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id + "/" + nowData.items[i].uploads[j]);
+              result.items[i].push(publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id + "/" + nowData.items[i].uploads[j].filename);
             } else {
               result.items[i].push(undefined);
             }
@@ -216,7 +218,6 @@ getchecktoken().then(res=>{
   // Case參數==============End
 
 //#endregion 參數==========End
-
 
 // #region 時間軸==========Start
   // 取得時間軸起迄位置
@@ -638,11 +639,30 @@ getchecktoken().then(res=>{
     // console.log(res.data.getAllCase)
   });
   getAllCaseonError(e=>{errorHandle(e,infomsg,alert1)});
+  function chekItemID(caseData){
+    let items = caseData.data.items
+    let maxid = -1;
+    // console.log('items',items)
+    if(items){
+      for(let i=0;i<items.length;i++){
+        // console.log('items[i].id',items[i].id)
+        if(!items[i].id && items[i].id!==0){
+          for(let j=0;j<items.length;j++){
+            if(items[j].id>maxid){
+              maxid=items[j].id;
+            }
+          }
+          items[i].id=maxid+1;
+        }
+      }
+    }
+  }
 
   // 查詢目前案件
   const { mutate: getCaseById, onDone: getCaseByIdonDone, onError: getCaseByIdonError } = useMutation(CaseGQL.GETCASEBYID);
   getCaseByIdonDone(result => {
     // 載入目前案件資料
+    chekItemID(result.data.getCaseById)
   });
   getCaseByIdonError(e=>{errorHandle(e,infomsg,alert1)});
 
@@ -681,7 +701,7 @@ getchecktoken().then(res=>{
           }
 
           if(activeItem.value.split(splitSign.value)[0] !== id){
-            activeItem.value = '';
+            activeItem.value = id + splitSign.value +'base';
           }
           
           // 更新時間軸item
@@ -753,12 +773,30 @@ getchecktoken().then(res=>{
         }else{
           result = inputArray;
         }
-        // console.log('result',result)
+        console.log('result',result)
         return result
       }).then(res=>{
+        for(let i=0;i<allCases.value.length; i++){
+          let nowId = allCases.value[i].id;
+          let resId = res.findIndex(x=>x.id===nowId);
+          // console.log('nowId',nowId,'resId',resId)
+          if(resId>=0){
+            // console.log('res[resId]',res[resId])
+            // console.log('allCases.value[i]',allCases.value[i])
+            if(allCases.value[i].subshow){
+              res[resId].subshow = allCases.value[i].subshow;
+            }
+          }
+        }
         allCases.value = res;
         updateCaseTimeBar(allCases.value);
         return allCases.value
+      }).then(res=>{
+        if(nowCaseData.case.id){
+          let mydom = document.getElementById(nowCaseData.case.id + splitSign.value +'casebox');
+          // console.log(mydom)
+          mydom.classList.add('case-selected');
+        }
       }).then(res=>{
         resolve(res);
       });
@@ -854,16 +892,16 @@ getchecktoken().then(res=>{
   // 記錄使用者排序
   function recordCaseSort(orgArray){
     let result=[];
-    console.log('orgArray',orgArray)
+    // console.log('orgArray',orgArray)
     for(let i=0;i<orgArray.length;i++){
       result.push(parseInt(orgArray[i].id));
-      console.log('result-'+i,result)
+      // console.log('result-'+i,result)
       if(orgArray[i].other_m4case.length>0){
-        console.log('sub')
+        // console.log('sub')
         let subCases = orgArray[i].other_m4case;
-        console.log('subCases',subCases)
+        // console.log('subCases',subCases)
         for(let j=0;j<subCases.length;j++){
-          console.log('subCases-'+'j',subCases[j].id)
+          // console.log('subCases-'+'j',subCases[j].id)
           result.push(parseInt(subCases[j].id));
         }
       }
@@ -929,6 +967,7 @@ getchecktoken().then(res=>{
     }
     // console.log(nowCaseData.case)
   }
+  // 時間軸item點擊事件
   function itemsClick(e,caseId,itemId){
     // 點選的案件不是目前案件時，先切換為目前案件，再設定目前item
     // console.log('caseId',caseId,'itemId',itemId);
@@ -965,7 +1004,7 @@ getchecktoken().then(res=>{
       }
     }else{
       // 清空被選擇之item
-      console.log($('.item-mark-selected'));
+      // console.log($('.item-mark-selected'));
       $('.item-mark-selected').removeClass('item-mark-selected');
     }
   })
@@ -988,7 +1027,7 @@ getchecktoken().then(res=>{
     let beforActiveItem = activeItem.value;
     // console.log(itemOder+delta)
     // 未達頂
-    if((parseInt(itemOder)+parseInt(delta))>0 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
+    if((parseInt(itemOder)+parseInt(delta))>-1 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
       new Promise((resolve,rej)=>{
         let newArray = moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+delta);
         // console.log('now-Caseitem:',newArray)
@@ -1014,6 +1053,12 @@ getchecktoken().then(res=>{
           }
         }
         // console.log('activeItem',activeItem.value)
+      }).then(res=>{
+        if(nowCaseData.case.id){
+          let mydom = document.getElementById(nowCaseData.case.id + splitSign.value +'casebox');
+          // console.log(mydom)
+          mydom.classList.add('case-selected');
+        }
       })
     }
   }
@@ -1021,8 +1066,23 @@ getchecktoken().then(res=>{
   const { mutate: saveUserSet, onDone: saveUserSetOnDone, onError: saveUserSetError } = useMutation(
     UsersGQL.UPDATEUSER);
 
-//#endregion 案件操作==========End
+  // item增加上傳檔案
+  function addUploadFile(e,caseItem){
+    // console.log('caseItem',caseItem)
+    if(!caseItem.uploads){
+      caseItem.uploads=[];
+    }
+    caseItem.uploads.push({
+      title:'',
+      filename:'',
+    })
+  }
+  // item移除上傳檔案
+  function removeUploadFile(e,caseItem){
 
+  }
+
+//#endregion 案件操作==========End
 
 //#region 拖曳操作==========Start
   let nowDragLocation = null;
@@ -1091,9 +1151,10 @@ getchecktoken().then(res=>{
 
 //#region 檔案上傳==========Start
   const uploadType = ref("");
-  function uploadBtn(inputId) {
+  function uploadBtn(inputId,uploadkey) {
     // 由按鈕啟動檔案選擇器
     uploadType.value = inputId;
+    nowItemULidx.value = uploadkey;
     const inputDOM = document.getElementById("AllUpload");
     inputDOM.setAttribute("accept","");
     // console.log('inputId',inputId)
@@ -1121,9 +1182,16 @@ getchecktoken().then(res=>{
         newName = "baseTable" + path.extname(e.target.value);
         break;
       case "itemUpload":
-        let nowData = nowCaseData.case.data;
-        subpath = "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id;
-        newName = e.target.value;
+        let nowCaseOrder = activeItem.value.split(splitSign.value);
+        let nowCaseId = nowCaseOrder[0];
+        let nowItemId = parseInt(nowCaseOrder[2]);
+        subpath = "01_Case/" + nowCaseId + "/" + nowItemId;
+        newName = 'file_' + nowItemULidx.value + path.extname(e.target.value);
+        nowCaseData.case.data.items[nowItemId].uploads[parseInt(nowItemULidx.value)]={
+          title: e.target.files[0].name,
+          filename: newName,
+        }
+        console.log('newName',e.target.files[0].name)
         break;
     }
     await uploadFile({
@@ -1148,7 +1216,7 @@ getchecktoken().then(res=>{
         saveCaseBtn();
         break;
       case "itemUpload":
-        nowCaseData.case.data.base.baseTable = result.data.uploadFile.filename;
+        // nowCaseData.case.data.base.baseTable = result.data.uploadFile.filename;
         saveCaseBtn();
         break;
     }
@@ -1286,7 +1354,6 @@ onMounted(()=>{
                         
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
-              :id="i + splitSign + 'casebox'"
               class="w-100 casebox"
               :key="i"
               @dblclick.stop="isPointerFix=true"
@@ -1385,106 +1452,138 @@ onMounted(()=>{
                       案件編號：{{nowCaseData.case.id}}
                       <MDBCheckbox label="已結案" v-model="nowCaseFinished" />
                     </MDBCol>
-                    <MDBCol md="6" class="mt-2">
-                      <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
+                    <!-- 案件名 -->
+                    <MDBCol md="12" class="border rounded-3 border-mblue py-2">
+                      <MDBRow>
+                        <MDBCol md="6" class="">
+                          <MDBInput size="sm" type="text" label="案件縮寫" counter :maxlength="20" v-model="nowCaseData.case.code" />
+                        </MDBCol>
+                        <MDBCol md="6" class="">
+                          <MDBInput size="sm" type="text" label="主案件" v-model="nowCaseData.case.parent_id" />
+                        </MDBCol>
+                        <div></div>
+                        <MDBCol md="12" class="mt-4">
+                          <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
+                        </MDBCol>
+                        <MDBCol md="12" class="mt-2">
+                          <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
+                        </MDBCol>
+                      </MDBRow>
                     </MDBCol>
-                    <MDBCol md="6" class="mt-2">
-                      <MDBInput size="sm" type="text" label="主案件" v-model="nowCaseData.case.parent_id" />
+                    <!-- 承辦及廠商 -->
+                    <MDBCol md="12" class="border rounded-3 border-mpink mt-2 py-2">
+                      <MDBRow>
+                        <MDBCol md="12" class="">
+                          <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
+                        </MDBCol>
+                        <MDBCol md="12" class="mt-2">
+                          <MDBInput size="sm" type="text" label="得標廠商" v-model="nowCaseData.case.data.base.weinningtenderer" />
+                        </MDBCol>
+                        <!-- 上傳檔案===Start -->
+                        <MDBCol col="12" class="mt-2">
+                          <upload
+                            label="基本資料表"
+                            label-id="baseTable"
+                            :readonly="true"
+                            :hasclose="true"
+                            :model-value="nowCaseData.case.data.base.baseTable"
+                            :dl-path="nowCaseDataDL.base.baseTable"
+                            :r-group="rGroup[2]"
+                            :upload-btn="uploadBtn"
+                            :download-file="downloadFile"
+                          ></upload>
+                        </MDBCol>
+                        <!-- 上傳檔案===End -->
+                      </MDBRow>
                     </MDBCol>
-                    <div></div>
-                    <MDBCol md="12" class="mt-4">
-                      <MDBTextarea size="sm" label="案件名稱" rows="2" v-model="nowCaseData.case.data.base.name" />
+                    
+                    <!-- 期程 -->
+                    <MDBCol md="12" class="border rounded-3 border-myellow mt-2 py-2">
+                      <MDBRow>
+                        <MDBCol md="6" class="">
+                          <MDBDatepicker 
+                            size="sm" v-model="nowCaseData.case.data.base.startdate" 
+                            format="YYYY-MM-DD" label="起始日"
+                            :monthsFull = "monthsFull"
+                            :monthsShort = "monthsShort"
+                            :weekdaysFull = "weekdaysFull"
+                            :weekdaysShort = "weekdaysShort"
+                            :weekdaysNarrow = "weekdaysNarrow"
+                            confirmDateOnSelect
+                            removeCancelBtn
+                            removeOkBtn/>
+                        </MDBCol>
+                        <MDBCol md="6" class="">
+                          <MDBDatepicker 
+                            size="sm" v-model="nowCaseData.case.data.base.enddate" 
+                            format="YYYY-MM-DD" label="結束日"
+                            :monthsFull = "monthsFull"
+                            :monthsShort = "monthsShort"
+                            :weekdaysFull = "weekdaysFull"
+                            :weekdaysShort = "weekdaysShort"
+                            :weekdaysNarrow = "weekdaysNarrow"
+                            confirmDateOnSelect
+                            removeCancelBtn
+                            removeOkBtn/>
+                        </MDBCol>
+                        <MDBCol md="6" class="mt-2">
+                          <MDBDatepicker 
+                            size="sm" v-model="nowCaseData.case.data.base.guarantee" 
+                            format="YYYY-MM-DD" label="保固期限"
+                            :monthsFull = "monthsFull"
+                            :monthsShort = "monthsShort"
+                            :weekdaysFull = "weekdaysFull"
+                            :weekdaysShort = "weekdaysShort"
+                            :weekdaysNarrow = "weekdaysNarrow"
+                            confirmDateOnSelect
+                            removeCancelBtn
+                            removeOkBtn/>
+                        </MDBCol>
+                      </MDBRow>
                     </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput size="sm" type="text" label="採購編號" v-model="nowCaseData.case.data.base.purchasecode" />
+
+                    <!-- 金額 -->
+                    <MDBCol md="12" class="border rounded-3 border-mlightgreen mt-2 py-2">
+                      <MDBRow>
+                        <MDBCol md="12" class="mt-2">
+                          <MDBInput 
+                            size="sm" 
+                            type="text" 
+                            label="採購金額" 
+                            class="text-end"
+                            v-model:model-value="purchaseAM"
+                            @update:model-value="dataFromCurrency('purchase_am',$event)"/>
+                        </MDBCol>
+                        <MDBCol md="6" class="mt-2">
+                          <MDBInput 
+                            size="sm" 
+                            type="text" 
+                            class="text-end"
+                            label="預算金額" 
+                            v-model:model-value="budgetAM"
+                            @update:model-value="dataFromCurrency('budget_am',$event)"/>
+                        </MDBCol>
+                        <MDBCol md="6" class="mt-2">
+                          <MDBInput 
+                            size="sm" 
+                            type="text" 
+                            class="text-end"
+                            label="擴充金額" 
+                            v-model:model-value="additionAM"
+                            @update:model-value="dataFromCurrency('addition_am',$event)"/>
+                        </MDBCol>
+                        <MDBCol md="12" class="mt-2">
+                          <MDBInput 
+                            size="sm" 
+                            type="text" 
+                            class="text-end border-danger"
+                            label="決標金額" 
+                            v-model:model-value="awardPrice"
+                            @update:model-value="dataFromCurrency('award_price',$event)"/>
+                        </MDBCol>
+                      </MDBRow>
                     </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput size="sm" type="text" label="承辦人" v-model="nowCaseData.case.data.base.operator" />
-                    </MDBCol>
-                    <!-- 上傳檔案===Start -->
-                    <MDBCol col="12" class="mt-2">
-                      <upload
-                        label="基本資料表"
-                        label-id="baseTable"
-                        :model-value="nowCaseData.case.data.base.baseTable"
-                        :dl-path="nowCaseDataDL.base.baseTable"
-                        :r-group="rGroup[2]"
-                        :upload-btn="uploadBtn"
-                        :download-file="downloadFile"
-                      ></upload>
-                    </MDBCol>
-                    <!-- 上傳檔案===End -->
-                    <MDBCol md="6" class="mt-2">
-                      <MDBDatepicker 
-                        size="sm" v-model="nowCaseData.case.data.base.startdate" 
-                        format="YYYY-MM-DD" label="起始日"
-                        :monthsFull = "monthsFull"
-                        :monthsShort = "monthsShort"
-                        :weekdaysFull = "weekdaysFull"
-                        :weekdaysShort = "weekdaysShort"
-                        :weekdaysNarrow = "weekdaysNarrow"
-                        confirmDateOnSelect
-                        removeCancelBtn
-                        removeOkBtn/>
-                    </MDBCol>
-                    <MDBCol md="6" class="mt-2">
-                      <MDBDatepicker 
-                        size="sm" v-model="nowCaseData.case.data.base.enddate" 
-                        format="YYYY-MM-DD" label="結束日"
-                        :monthsFull = "monthsFull"
-                        :monthsShort = "monthsShort"
-                        :weekdaysFull = "weekdaysFull"
-                        :weekdaysShort = "weekdaysShort"
-                        :weekdaysNarrow = "weekdaysNarrow"
-                        confirmDateOnSelect
-                        removeCancelBtn
-                        removeOkBtn/>
-                    </MDBCol>
-                    <MDBCol md="6" class="mt-2">
-                      <MDBDatepicker 
-                        size="sm" v-model="nowCaseData.case.data.base.guarantee" 
-                        format="YYYY-MM-DD" label="保固期限"
-                        :monthsFull = "monthsFull"
-                        :monthsShort = "monthsShort"
-                        :weekdaysFull = "weekdaysFull"
-                        :weekdaysShort = "weekdaysShort"
-                        :weekdaysNarrow = "weekdaysNarrow"
-                        confirmDateOnSelect
-                        removeCancelBtn
-                        removeOkBtn/>
-                    </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        label="採購金額" 
-                        v-model:model-value="purchaseAM"
-                        @update:model-value="dataFromCurrency('purchase_am',$event)"/>
-                    </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        label="預算金額" 
-                        v-model:model-value="budgetAM"
-                        @update:model-value="dataFromCurrency('budget_am',$event)"/>
-                    </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        label="擴充金額" 
-                        v-model:model-value="additionAM"
-                        @update:model-value="dataFromCurrency('addition_am',$event)"/>
-                    </MDBCol>
-                    <MDBCol md="12" class="mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        label="決標金額" 
-                        v-model:model-value="awardPrice"
-                        @update:model-value="dataFromCurrency('award_price',$event)"/>
-                    </MDBCol>
+                    
                     
                   </MDBRow>
                 </template>
@@ -1534,7 +1633,7 @@ onMounted(()=>{
                 v-for="(item,idx) in nowCaseData.case.data.items"
                 :item-name="item.name" 
                 :label-bg-color="(item.finisheddate && item.finisheddate!==' ')?'#69CB5C':'#54b4d3'"
-                :item-id="nowCaseData.case.id + splitSign + item.name + splitSign + idx"
+                :item-id="nowCaseData.case.id + splitSign + item.name + splitSign + item.id"
                 :is-items="true"
                 :key="idx"
                 v-model="activeItem"
@@ -1581,21 +1680,31 @@ onMounted(()=>{
                     <div></div>
                     <!-- 上傳資料 -->
                     <MDBCol md="12" class="mt-2 pb-2 border">
-                      <!-- 上傳檔案===Start -->
                       <MDBRow>
+                        <div class="d-flex mt-2">
+                          <div class="flex-grow-1">上傳檔案</div>
+                          <!-- 增加檔案 -->
+                          <MDBBtn 
+                            :class="['curser-pointer','up-btn']"
+                            @click.stop="addUploadFile($event,item)"
+                            ><i class="fas fa-plus"></i></MDBBtn>
+                        </div>
+                        <!-- 上傳檔案===Start -->
                         <MDBCol v-for="(upload, iup) in item.uploads" col="12" class="mt-2">
+                          <div>{{ iup }}</div>
                           <upload
-                            :label="'檔案-'+iup"
                             label-id="itemUpload"
-                            :model-value="upload"
-                            :dl-path="nowCaseDataDL.items[idx].uploads[iup]"
+                            :model-value="upload.title"
+                            :dl-path="nowCaseDataDL.items[idx][iup]"
+                            :upload-key="iup"
                             :r-group="rGroup[2]"
                             :upload-btn="uploadBtn"
                             :download-file="downloadFile"
                           ></upload>
                         </MDBCol>
+                        <!-- 上傳檔案===End -->
                       </MDBRow>
-                      <!-- 上傳檔案===End -->
+                      
                     </MDBCol>
                   </MDBRow>
                 </template>
@@ -1788,5 +1897,55 @@ onMounted(()=>{
   position: absolute;
   top: 0.25em;
   right: 0.25em;
+}
+
+/* 馬卡龍色系 */
+.bg-mblue{
+  background-color: #90f1ef !important;
+}
+.border-mblue{
+  border-color: #90f1ef !important;
+  background-color: rgba(144, 241, 239, 0.2);
+}
+.bg-mpink{
+  background-color: #f7d5df !important;
+}
+.border-mpink{
+  border-color: #f7d5df !important;
+  background-color: rgba(247, 213, 223,0.4);
+}
+.bg-myellow{
+  background-color: yellow !important;
+}
+.border-myellow{
+  border-color: yellow !important;
+  background-color: rgba(255, 239, 159,0.4);
+}
+.bg-mmintgreen{
+  background-color: #c0f7a4 !important;
+}
+.border-mmintgreen{
+  border-color: #c0f7a4 !important;
+  background-color: rgba(192, 247, 164,0.3);
+}
+.bg-mlightgreen{
+  background-color: #7bf1a8 !important;
+}
+.border-mlightgreen{
+  border-color: #7bf1a8 !important;
+  background-color: rgba(123, 241, 168,0.2);
+}
+/* 馬卡龍色系 */
+
+input.border-danger + label + div>div{
+  border-color: #dc4c64 !important;
+}
+.up-btn{
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1rem;
+  padding: 0.1rem 0.25rem;
+  color: #b9b9b9;
+  background-color: #1c954b;
 }
 </style>

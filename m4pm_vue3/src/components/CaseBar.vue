@@ -12,7 +12,6 @@ const props = defineProps({
   itemsClick: {type: Function},
   date2shortStr: {type: Function},
   getNowCaseBtn: {type: Function},
-  splitSign: {type: String},
 });
 const emit = defineEmits(['showsubcase']);
 const timebarToDayLeft = inject('timebarToDayLeft');
@@ -34,6 +33,7 @@ onMounted(()=>{
 </script>
 <template>
   <div 
+    :id="props.caseData.id + splitSign + 'casebox'"
     :class="['d-flex w-100 casebox-content', props.isSubCase?'subcase':'']" 
     :style="{
       position:'relative',
@@ -45,12 +45,23 @@ onMounted(()=>{
     <div 
       :style="{
         width: props.leftCaseWidth + 'rem',
-        padding: '0.5rem 0.5rem 0.5rem ' + props.leftCasePaddingLeft + 'rem',
+        padding: '0.5rem 1.5rem 0.5rem ' + props.leftCasePaddingLeft + 'rem',
       }" 
       class="h-100 border-end pos-relative"
       >
-      <div>{{ props.caseData.code }}</div>
-      <div>{{ props.caseData.data.base.operator }}</div>
+      <div class="d-flex mt-1">
+        <div class="bg-mmintgreen rounded-start px-1">案件</div>
+        <div class="border rounded-end border-mmintgreen px-1">{{ props.caseData.code }}</div>
+      </div>
+      <div class="d-flex mt-1">
+        <div class="bg-mpink rounded-start px-1">廠商</div>
+        <div class="border rounded-end border-mpink px-1">{{ props.caseData.data.base.weinningtenderer }}</div>
+      </div>
+      <div class="d-flex mt-1">
+        <div class="bg-mblue rounded-start px-1">承辦</div>
+        <div class="border rounded-end border-mblue px-1">{{ props.caseData.data.base.operator }}</div>
+      </div>
+      
       <!-- 展開符號 -->
       <label v-show="!props.isSubCase && props.caseData.other_m4case.length>0"
         style="right: 0.5rem; top:0.25rem"
