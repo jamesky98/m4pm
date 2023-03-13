@@ -54,12 +54,12 @@ onMounted(()=>{
         <div class="border rounded-end border-mmintgreen px-1">{{ props.caseData.code }}</div>
       </div>
       <div class="d-flex mt-1">
-        <div class="bg-mpink rounded-start px-1">廠商</div>
-        <div class="border rounded-end border-mpink px-1">{{ props.caseData.data.base.weinningtenderer }}</div>
+        <div class="bg-mpink rounded-start px-1 fs-7">廠商</div>
+        <div class="border rounded-end border-mpink px-1 fs-7">{{ props.caseData.data.base.weinningtenderer }}</div>
       </div>
       <div class="d-flex mt-1">
-        <div class="bg-mblue rounded-start px-1">承辦</div>
-        <div class="border rounded-end border-mblue px-1">{{ props.caseData.data.base.operator }}</div>
+        <div class="bg-mblue rounded-start px-1 fs-7">承辦</div>
+        <div class="border rounded-end border-mblue px-1 fs-7">{{ props.caseData.data.base.operator }}</div>
       </div>
       
       <!-- 展開符號 -->
@@ -132,3 +132,8 @@ onMounted(()=>{
   </div>
   
 </template>
+<style scoped>
+.fs-7{
+  font-size: smaller;
+}
+</style>
