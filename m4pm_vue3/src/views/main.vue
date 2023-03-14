@@ -192,9 +192,9 @@ getchecktoken().then(res=>{
     if(nowData.items.length>0){
       for(let i=0;i<nowData.items.length;i++){
         result.items.push([]);
-        if(nowData.items[i].upload){
+        if(nowData.items[i].uploads){
           for(let j=0;j<nowData.items[i].uploads.length;j++){
-            if (nowData.items[i].upload[j] !== "") {
+            if (nowData.items[i].uploads[j].filename !== "") {
               result.items[i].push(publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id + "/" + nowData.items[i].uploads[j].filename);
             } else {
               result.items[i].push(undefined);
@@ -203,6 +203,7 @@ getchecktoken().then(res=>{
         }
       }
     }
+    // console.log('DL',result)
     return result
   })
   const nowCaseOperator = ref(""); // 承辦人
@@ -1068,18 +1069,30 @@ getchecktoken().then(res=>{
 
   // item增加上傳檔案
   function addUploadFile(e,caseItem){
+    let maxId = -1;
     // console.log('caseItem',caseItem)
     if(!caseItem.uploads){
       caseItem.uploads=[];
     }
+    for(let i=0;i<caseItem.uploads.length;i++){
+      if(parseInt(caseItem.uploads[i].id)>maxId){
+        maxId=parseInt(caseItem.uploads[i].id);
+      }
+    }
+
     caseItem.uploads.push({
+      id: maxId+1,
       title:'',
       filename:'',
     })
   }
   // item移除上傳檔案
-  function removeUploadFile(e,caseItem){
-
+  function removeUploadFile(e, index){
+    console.log('index',index);
+    let actId = activeItem.value.split(splitSign.value);
+    console.log('actId',actId);
+    let itemId = actId[2];
+    nowCaseData.case.data.items[itemId].uploads.splice(index,1)
   }
 
 //#endregion 案件操作==========End
@@ -1151,10 +1164,10 @@ getchecktoken().then(res=>{
 
 //#region 檔案上傳==========Start
   const uploadType = ref("");
-  function uploadBtn(inputId,uploadkey) {
+  function uploadBtn(inputId,uploadId) {
     // 由按鈕啟動檔案選擇器
     uploadType.value = inputId;
-    nowItemULidx.value = uploadkey;
+    nowItemULidx.value = uploadId;
     const inputDOM = document.getElementById("AllUpload");
     inputDOM.setAttribute("accept","");
     // console.log('inputId',inputId)
@@ -1187,7 +1200,10 @@ getchecktoken().then(res=>{
         let nowItemId = parseInt(nowCaseOrder[2]);
         subpath = "01_Case/" + nowCaseId + "/" + nowItemId;
         newName = 'file_' + nowItemULidx.value + path.extname(e.target.value);
-        nowCaseData.case.data.items[nowItemId].uploads[parseInt(nowItemULidx.value)]={
+        let upIndex = nowCaseData.case.data.items[nowItemId].uploads.findIndex(x=>parseInt(x.id)===parseInt(nowItemULidx.value))
+        let myUploadsId = nowCaseData.case.data.items[nowItemId].uploads[upIndex].id;
+        nowCaseData.case.data.items[nowItemId].uploads[upIndex]={
+          id: myUploadsId,
           title: e.target.files[0].name,
           filename: newName,
         }
@@ -1639,7 +1655,6 @@ onMounted(()=>{
                 v-model="activeItem"
                 @moveitemup="itemMove($event,-1)"
                 @moveitemdown="itemMove($event,1)"
-                draggable="true"
                 >
                 <template v-slot:itemText>
                   <MDBRow>
@@ -1682,24 +1697,28 @@ onMounted(()=>{
                     <MDBCol md="12" class="mt-2 pb-2 border">
                       <MDBRow>
                         <div class="d-flex mt-2">
-                          <div class="flex-grow-1">上傳檔案</div>
                           <!-- 增加檔案 -->
                           <MDBBtn 
                             :class="['curser-pointer','up-btn']"
                             @click.stop="addUploadFile($event,item)"
                             ><i class="fas fa-plus"></i></MDBBtn>
+                          <div class="fs-7">上傳資料</div>
+                          
                         </div>
                         <!-- 上傳檔案===Start -->
                         <MDBCol v-for="(upload, iup) in item.uploads" col="12" class="mt-2">
-                          <div>{{ iup }}</div>
                           <upload
                             label-id="itemUpload"
-                            :model-value="upload.title"
+                            v-model:model-value="upload.title"
                             :dl-path="nowCaseDataDL.items[idx][iup]"
+                            :case-id="nowCaseData.case.id"
+                            :item-id="item.id"
                             :upload-key="iup"
+                            :upload-id="upload.id"
                             :r-group="rGroup[2]"
                             :upload-btn="uploadBtn"
                             :download-file="downloadFile"
+                            :remove-upload-file="removeUploadFile"
                           ></upload>
                         </MDBCol>
                         <!-- 上傳檔案===End -->
@@ -1941,11 +1960,14 @@ input.border-danger + label + div>div{
   border-color: #dc4c64 !important;
 }
 .up-btn{
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.4rem;
+  height: 1.4rem;
   line-height: 1rem;
   padding: 0.1rem 0.25rem;
-  color: #b9b9b9;
-  background-color: #1c954b;
+  color: white;
+  background-color: #00ADC1;
+}
+.fs-7{
+  font-size: smaller;
 }
 </style>

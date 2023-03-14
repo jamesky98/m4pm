@@ -132,8 +132,3 @@ onMounted(()=>{
   </div>
   
 </template>
-<style scoped>
-.fs-7{
-  font-size: smaller;
-}
-</style>
