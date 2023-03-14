@@ -1,0 +1,44 @@
+
+latest:
+
+vue3: m4_V01.tar
+server: m4_S01.tar
+
+================
+vue3:
+================
+1>>
+npm run build
+
+2>>
+docker compose up
+
+3>>
+stop docker contant
+
+4>>
+docker save -o m4_v01.tar m4pm-vue3
+
+5>>
+copy m4_v**.tar to M:\
+
+6>>
+create new contant
+
+network: bridge mode
+volumes: none
+
+================
+server:
+================
+1>>
+docker save -o m4_S01.tar m4pm_server-apollo
+
+2>>
+copy  m4_S**.tar to M:\
+
+3>>
+create new contant
+
+network: host mode
+volumes: /M4disk/m4pm : /m4pm_server/public

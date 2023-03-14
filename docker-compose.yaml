@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  vue3: 
+    build: ./m4pm_vue3
+    ports: 
+      - "5173:5173"
+    container_name: vue3
+  server: 
+    env_file: ./m4pm_server/.env
+    build: ./m4pm_server
+    ports: 
+      - "4100:4100"
+    container_name: server
+    volumes:
+      - type: bind
+        source: ./public
+        target: /m4pm_server/public

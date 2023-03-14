@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .env*
+*.tar
 
 src/assets/fonts/
 src/assets/cwtexyen/
