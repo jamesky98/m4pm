@@ -13,5 +13,5 @@ services:
     container_name: server
     volumes:
       - type: bind
-        source: ./public
+        source: ./m4pm_server/public
         target: /m4pm_server/public

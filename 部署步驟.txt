@@ -1,8 +1,8 @@
 
 latest:
 
-vue3: m4_V02.tar
-server: m4_S02.tar
+vue3: m4_V04.tar
+server: m4_S03.tar
 
 ================
 vue3:
@@ -17,7 +17,7 @@ docker compose up
 stop docker contant
 
 4>>
-docker save -o m4_v02.tar m4pm-vue3
+docker save -o m4_v04.tar m4pm-vue3
 
 5>>
 copy m4_v**.tar to M:\
@@ -32,7 +32,7 @@ volumes: none
 server:
 ================
 1>>
-docker save -o m4_S02.tar m4pm-server
+docker save -o m4_S03.tar m4pm-server
 
 2>>
 copy  m4_S**.tar to M:\

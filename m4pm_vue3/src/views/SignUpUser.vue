@@ -46,7 +46,7 @@ chkUserOnDone(result=>{
   }
 });
 
-執行查詢
+//執行查詢
 const { mutate: usersignup, onDone: signupOnDone, onError: usersignuponError } = useMutation(
   UsersGQL.SIGNUPMU,
   () => (

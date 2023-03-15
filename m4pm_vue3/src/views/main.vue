@@ -903,7 +903,7 @@ getchecktoken().then(res=>{
   // 記錄使用者排序
   function recordCaseSort(orgArray){
     let result=[];
-    // console.log('orgArray',orgArray)
+    console.log('orgArray',orgArray)
     for(let i=0;i<orgArray.length;i++){
       result.push(parseInt(orgArray[i].id));
       // console.log('result-'+i,result)
@@ -1021,8 +1021,11 @@ getchecktoken().then(res=>{
   })
   // 移動Array內容
   function moveArray(array,from,to){
+    // console.log('from',from);
     let moveitem = array.splice(from,1)[0];
+    // console.log('moveitem',moveitem);
     array.splice(to,0,moveitem);
+    // console.log('array',array);
     return array
   }
   // item移動
@@ -1170,6 +1173,7 @@ getchecktoken().then(res=>{
     // console.log('dragging')
     e.target.classList.add("dragging");
     nowDragSource=e.target;
+    // console.log('nowDragSource',nowDragSource)
   }
   function caseBoxDragend(e){
     // console.log('dragend')
@@ -1200,16 +1204,21 @@ getchecktoken().then(res=>{
       // console.log('e.currentTarget',e.currentTarget.id); // to
       let fromId = nowDragSource.id.split(splitSign.value)[0];
       let toId = e.currentTarget.id.split(splitSign.value)[0];
-
+      // console.log('fromId',fromId);
+      // console.log('nowDragSource.id',nowDragSource.id);
+      // console.log('e.currentTarget.id',e.currentTarget.id);
       new Promise((resolve,rej)=>{
         resolve(toRaw(allCases.value))
       }).then(res=>{
-        let newArray = moveArray(res,fromId,toId);
+        let fromOrder = res.findIndex(x=>parseInt(x.id)===parseInt(fromId));
+        let toOrder = res.findIndex(x=>parseInt(x.id)===parseInt(toId));
+        let newArray = moveArray(res,fromOrder,toOrder);
+        // console.log('newArray',newArray)
         allCases.value = newArray;
         // console.log(allCases.value)
         return newArray
       }).then(res=>{
-        console.log('usersetting.casesort',usersetting.value.casesort)
+        // console.log('usersetting.casesort',usersetting.value.casesort)
         usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
         return usersetting.value
       }).then(res=>{
@@ -1435,6 +1444,7 @@ onMounted(()=>{
                         
             <!-- 列表 -->
             <div v-for="(x, i) in allCases" 
+              :id="x.id + splitSign + 'maincase'"
               class="w-100 casebox"
               :key="i"
               @dblclick.stop="isPointerFix=true"
