@@ -13,8 +13,6 @@
     labelId: {type: String, default:''},
     modelValue: {type:String},
     dlPath: {type:String},
-    caseId: {type:String, default:''},
-    itemId: {type:Number},
     uploadId: {type:Number},
     uploadKey: {type:Number, default:0},
     readonly: {type: Boolean, default:false},
@@ -50,7 +48,7 @@
           size="sm" type="text"
           :label="props.label" 
           :model-value="props.modelValue"
-          @update:model-value="emit('update:modelValue',$event.target.value)">
+          @update:model-value="updateValue($event)">
           <MDBBtnClose v-if="props.hasclose" :disabled="!props.rGroup" @click.prevent="this.value = ''"
             class="btn-upload-close" />
         </MDBInput>
@@ -95,16 +93,18 @@
         下載
       </MDBBtn>
       <MDBBtn v-if="props.labelId!=='baseTable'"
+        tag="a"
+        target=_blank
+        :href="props.dlPath"
         size="sm" 
         color="secondary"
-        class="px-1 flex-fill"
-        >
+        class="px-1 flex-fill">
         <i class="far fa-eye"></i>
       </MDBBtn>
       <MDBBtn v-if="props.labelId!=='baseTable'"
         size="sm" 
         color="secondary"
-        class="px-2 flex-fill"
+        class="px-2 flex-fill text-danger"
         @click.stop="removeBtn($event)">
         <i class="far fa-trash-alt"></i>
       </MDBBtn>

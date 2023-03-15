@@ -112,12 +112,16 @@ loginError(e => {
   background: #fccb90;
 
   /* Chrome 10-25, Safari 5.1-6 */
-  background: -webkit-linear-gradient(to right, #0078AA, #3AB4F2,#F2DF3A);
+  background: -webkit-linear-gradient(to right,
+    #FF80AB, 
+    #F50057,
+    #C51162);
 
   /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-  background: linear-gradient(to right, #79DAE8,
-    #0AA1DD,
-    #2155CD);
+  background: linear-gradient(to right, 
+    #FF80AB,
+    #F50057,
+    #C51162);
 }
 
 @media (min-width: 768px) {

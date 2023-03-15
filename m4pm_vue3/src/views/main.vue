@@ -3,7 +3,7 @@ import Footer1 from "../components/Footer.vue";
 import Navbar1 from "../components/Navbar.vue";
 import AccordionItem from "../components/AccordionItem.vue"
 import CaseBar from "../components/CaseBar.vue"
-import upload from "../components/upload.vue"
+import uploadtool from "../components/uploadtool.vue"
 import path from "path-browserify";
 import {
   MDBCol, MDBRow, MDBContainer,
@@ -85,7 +85,8 @@ getchecktoken().then(res=>{
   const splitSign = ref('#');
   provide('splitSign',splitSign);
   const dragkey = ref(0);
-
+  const showJson = ref(false);
+  const jsonChErr = ref('');
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -161,11 +162,7 @@ getchecktoken().then(res=>{
         guarantee: ' ',
         baseTable: '',
       },
-      schedule:{
-        startdate: ' ',
-        enddate: ' ',
-        list:[],
-      },
+      schedule:[],
       items: [],
     },
     parent_id: null,
@@ -177,35 +174,12 @@ getchecktoken().then(res=>{
     date: ' ',
     finisheddate: ' ',
   }; // 項目初始化資料
+  const newSchedule = {
+    date: ' ',
+    estimated: '',
+    actual: '',
+  }; // 進度表初始化資料
   const nowCaseData = reactive({case: JSON.parse(JSON.stringify(newCase))});
-  const nowCaseDataDL= computed(()=>{
-    let nowData = nowCaseData.case.data;
-    let result={
-      base:{baseTable: undefined},
-      items:[],
-    };
-    if(nowData.base){
-      if (nowData.base.baseTable !== "") {
-        result.base.baseTable=publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.base.baseTable;
-      }
-    };
-    if(nowData.items.length>0){
-      for(let i=0;i<nowData.items.length;i++){
-        result.items.push([]);
-        if(nowData.items[i].uploads){
-          for(let j=0;j<nowData.items[i].uploads.length;j++){
-            if (nowData.items[i].uploads[j].filename !== "") {
-              result.items[i].push(publicPath.value + "01_Case/" + nowCaseData.case.id + "/" + nowData.items[i].id + "/" + nowData.items[i].uploads[j].filename);
-            } else {
-              result.items[i].push(undefined);
-            }
-          }
-        }
-      }
-    }
-    // console.log('DL',result)
-    return result
-  })
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
 
@@ -214,8 +188,10 @@ getchecktoken().then(res=>{
   const additionAM = ref(""); // 增購金額
   const awardPrice = ref(""); // 決標金額
 
-
-
+  const jsonChecked = ref(null);
+  const scheduleDateTemp = ref(' ');
+  const scheduleDateDOM = ref();
+  const nowSchId = ref('');
   // Case參數==============End
 
 //#endregion 參數==========End
@@ -671,6 +647,8 @@ getchecktoken().then(res=>{
   function getNowCaseBtn(e,id){
     return new Promise((res,rej)=>{
       if(id){
+        jsonChecked.value = null;
+        jsonChErr.value = '';
         // console.log('e.target',e.target);
         $('.case-selected').removeClass('case-selected');
         if($(e.target).hasClass( "casebox-content" )){
@@ -683,11 +661,7 @@ getchecktoken().then(res=>{
           let getCase = res.data.getCaseById;
           nowCaseData.case = getCase;
           nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
-          
-          // nowCaseStartDate.value = (nowCaseData.case.data.base.startdate)?nowCaseData.case.data.base.startdate:' ';
-          // nowCaseEnddate.value = (nowCaseData.case.data.base.enddate)?nowCaseData.case.data.base.enddate:' ';
-          // nowCaseGuarantee.value = (nowCaseData.case.data.base.guarantee)?nowCaseData.case.data.base.guarantee:' ';
-
+          // console.log('nowCaseData',nowCaseData);
           purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
           budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
           additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
@@ -743,23 +717,59 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
+    // 處理空日期
     nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?(nowCaseData.case.data.base.startdate):' '; 
     nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?(nowCaseData.case.data.base.enddate):' ';
     nowCaseData.case.data.base.guarantee = (nowCaseData.case.data.base.guarantee)?(nowCaseData.case.data.base.guarantee):' ';
     for(let i=0;i<nowCaseData.case.data.items.length;i++){
-      // 處理空日期
+      // 處理items內之空日期
       nowCaseData.case.data.items[i].date = (nowCaseData.case.data.items[i].date)?nowCaseData.case.data.items[i].date:' ';
       nowCaseData.case.data.items[i].finisheddate = (nowCaseData.case.data.items[i].finisheddate)?nowCaseData.case.data.items[i].finisheddate:' ';
     }
-    saveCase({
-      saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
-      code: (nowCaseData.case.code)?nowCaseData.case.code:null,
-      active: (nowCaseData.case.active)?nowCaseData.case.active:1,
-      data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
-      parentId: (nowCaseData.case.parent_id)?parseInt(nowCaseData.case.parent_id):null
+    // 處理schedule資料依日期排序
+    
+
+    new Promise((res,rej)=>{
+      let mySchedule = toRaw(nowCaseData.case.data.schedule);
+      mySchedule.sort((a,b)=>{
+        let aDateNum = new Date(a.date).getTime();
+        let bDateNum = new Date(b.date).getTime();
+        return (aDateNum - bDateNum)
+      });
+      nowCaseData.case.data.schedule = mySchedule;
+      res(mySchedule)
     }).then(res=>{
-      // 更新
-      updateAllCase();
+      return saveCase({
+        saveCaseByIdId: (nowCaseData.case.id)?parseInt(nowCaseData.case.id):-1,
+        code: (nowCaseData.case.code)?nowCaseData.case.code:null,
+        active: (nowCaseData.case.active)?nowCaseData.case.active:1,
+        data: (nowCaseData.case.data)?(nowCaseData.case.data):null,
+        parentId: (nowCaseData.case.parent_id)?parseInt(nowCaseData.case.parent_id):null
+      });
+    }).then(res=>{
+      // 更新Allcase及時間軸
+      return updateAllCase();
+    }).then(res=>{
+      // 更新右側資料欄
+      return getCaseById({getCaseByIdId: parseInt(nowCaseData.case.id)});
+    }).then(res=>{
+      // console.log('CaseById',res.data.getCaseById);
+      let getCase = res.data.getCaseById;
+      nowCaseData.case = getCase;
+      nowCaseFinished.value = (nowCaseData.case.finished===1)?true:false;
+      // console.log('nowCaseData',nowCaseData);
+      purchaseAM.value = (nowCaseData.case.data.base.purchase_am)?toCurrency(nowCaseData.case.data.base.purchase_am):'';
+      budgetAM.value = (nowCaseData.case.data.base.budget_am)?toCurrency(nowCaseData.case.data.base.budget_am):'';
+      additionAM.value = (nowCaseData.case.data.base.addition_am)?toCurrency(nowCaseData.case.data.base.addition_am):'';
+      awardPrice.value = (nowCaseData.case.data.base.award_price)?toCurrency(nowCaseData.case.data.base.award_price):'';
+      
+      if(!nowCaseData.case.data.schedule){
+        nowCaseData.case.data.schedule ={
+          startdate: ' ',
+          enddate: ' ',
+          list:[],
+        }
+      }
     })
   }
   // 更新總案件列表
@@ -1088,13 +1098,68 @@ getchecktoken().then(res=>{
   }
   // item移除上傳檔案
   function removeUploadFile(e, index){
-    console.log('index',index);
+    // console.log('index',index);
     let actId = activeItem.value.split(splitSign.value);
-    console.log('actId',actId);
+    // console.log('actId',actId);
     let itemId = actId[2];
     nowCaseData.case.data.items[itemId].uploads.splice(index,1)
   }
 
+  // 文字模式更新
+  function textJsonChange(e){
+    try{
+      jsonChecked.value = true;
+      jsonChErr.value = '';
+      nowCaseData.case = JSON.parse(e.target.value);
+    }catch (err){
+      jsonChecked.value = false;
+      jsonChErr.value = 'name: '+ err.name + '\n'+'message: ' + err.message;
+    }
+  }
+
+  // 增加進度紀錄
+  function addSchedule(e){
+    if(!nowCaseData.case.data.schedule){
+      nowCaseData.case.data.schedule=[];  
+    }
+    nowCaseData.case.data.schedule.push(newSchedule);
+  }
+  // 刪除進度紀錄
+  function removeSchedule(e,sid){
+    nowCaseData.case.data.schedule.splice(sid,1);
+  }
+  // 開啟進度日期選擇器
+  function openSchDatePicker(e,sid){
+    nowSchId.value = sid;
+    scheduleDateDOM.value.open();
+  }
+  // 更新進度日期欄
+  function updateSchDate(e){
+    nowCaseData.case.data.schedule[parseInt(nowSchId.value)].date = scheduleDateTemp.value;
+  }
+  // 取得進度列表民國年
+  function getSchYear(dateStr,sid){
+    let mydateObj = new Date(dateStr);
+    if(sid>0){
+      let predateObj = new Date(nowCaseData.case.data.schedule[sid-1].date);
+      if(!isNaN(predateObj.getTime()) && predateObj.getTime()!==0){
+        // 判斷是否相同
+        if(predateObj.getFullYear()===mydateObj.getFullYear()){
+          return ''
+        }
+      }
+    }
+    return (mydateObj.getFullYear())?mydateObj.getFullYear()-1911:''
+  }
+  // 取得進度列表日期
+  function getSchMD(dateStr){
+    let mydateObj = new Date(dateStr);
+    if(!isNaN(mydateObj.getTime()) && mydateObj.getTime()!==0){
+      return (mydateObj.getMonth()+1) + '/' + mydateObj.getDate()
+    }else{
+      return ''
+    }
+  }
 //#endregion 案件操作==========End
 
 //#region 拖曳操作==========Start
@@ -1431,7 +1496,8 @@ onMounted(()=>{
         </div>
         <!-- 右側 功能欄 固定寬度 -->
         <MDBContainer :style="{width: rightToolWidth +'rem'}" class="h-100">
-          <MDBRow class="h-100">
+          <MDBRow class="h-100 align-content-start">
+<!-- 功能按鈕========================= -->           
             <MDBCol col="12" :style="{height: caseDataToolHeight +'rem'}">
               <MDBRow>
                 <MDBCol col="12">功能按鈕</MDBCol>
@@ -1448,6 +1514,11 @@ onMounted(()=>{
                       <MDBBtn class="" size="sm" color="primary" @click.stop="">
                         <i class="fas fa-minus"></i>
                       </MDBBtn>
+                      <!-- 顯示模式 -->
+                      <MDBBtn class="" size="sm" color="primary" @click.stop="showJson=!showJson">
+                        <i v-if="!showJson" class="fas fa-table"></i>
+                        <i v-else class="fas fa-align-justify"></i>
+                      </MDBBtn>
                     </MDBCol>
                     <MDBCol class="col-12">
                       目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}} 
@@ -1457,8 +1528,9 @@ onMounted(()=>{
               </MDBRow>
             </MDBCol>
             <!-- 右側資訊欄 -->
-            <MDBCol col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="px-0 overflow-auto">
-              <!-- 基本資料 -->
+<!-- 圖形顯示模式===================== -->
+            <MDBCol v-show="!showJson" col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="px-0 overflow-auto">
+  <!-- 基本資料========================= -->
               <AccordionItem 
                 v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'base'" 
                 item-name="基本資料" label-bg-color="#dc4c64">
@@ -1497,22 +1569,21 @@ onMounted(()=>{
                         </MDBCol>
                         <!-- 上傳檔案===Start -->
                         <MDBCol col="12" class="mt-2">
-                          <upload
+                          <uploadtool
                             label="基本資料表"
                             label-id="baseTable"
                             :readonly="true"
                             :hasclose="true"
                             :model-value="nowCaseData.case.data.base.baseTable"
-                            :dl-path="nowCaseDataDL.base.baseTable"
+                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/' + nowCaseData.case.data.base.baseTable"
                             :r-group="rGroup[2]"
                             :upload-btn="uploadBtn"
                             :download-file="downloadFile"
-                          ></upload>
+                          ></uploadtool>
                         </MDBCol>
                         <!-- 上傳檔案===End -->
                       </MDBRow>
                     </MDBCol>
-                    
                     <!-- 期程 -->
                     <MDBCol md="12" class="border rounded-3 border-myellow mt-2 py-2">
                       <MDBRow>
@@ -1557,7 +1628,6 @@ onMounted(()=>{
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
-
                     <!-- 金額 -->
                     <MDBCol md="12" class="border rounded-3 border-mlightgreen mt-2 py-2">
                       <MDBRow>
@@ -1599,52 +1669,116 @@ onMounted(()=>{
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
-                    
-                    
                   </MDBRow>
                 </template>
               </AccordionItem>
+  <!-- 進度表=========================== -->
               <AccordionItem 
                 v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'schedule'" 
                 item-name="進度" label-bg-color="#dc4c64">
                 <template v-slot:itemText>
-                  <MDBRow>
-                    <!-- 進度起算日 -->
-                    <MDBCol md="6" class="mt-2">
-                      <MDBDatepicker 
-                        size="sm" v-model="nowCaseData.case.data.schedule.startdate" 
-                        format="YYYY-MM-DD" label="進度起算日"
-                        :monthsFull = "monthsFull"
-                        :monthsShort = "monthsShort"
-                        :weekdaysFull = "weekdaysFull"
-                        :weekdaysShort = "weekdaysShort"
-                        :weekdaysNarrow = "weekdaysNarrow"
-                        confirmDateOnSelect
-                        removeCancelBtn
-                        removeOkBtn/>
-                    </MDBCol>
-                    <!-- 進度截止日 -->
-                    <MDBCol md="6" class="mt-2">
-                      <MDBDatepicker 
-                        size="sm" v-model="nowCaseData.case.data.schedule.enddate" 
-                        format="YYYY-MM-DD" label="進度截止日"
-                        :monthsFull = "monthsFull"
-                        :monthsShort = "monthsShort"
-                        :weekdaysFull = "weekdaysFull"
-                        :weekdaysShort = "weekdaysShort"
-                        :weekdaysNarrow = "weekdaysNarrow"
-                        confirmDateOnSelect
-                        removeCancelBtn
-                        removeOkBtn/>
-                    </MDBCol>
+                  <MDBRow class="align-items-stretch">
+                    <div class="d-flex mt-2">
+                      <!-- 增加檔案 -->
+                      <MDBBtn 
+                        :class="['curser-pointer','up-btn']"
+                        @click.stop="addSchedule($event)"
+                        ><i class="fas fa-plus"></i></MDBBtn>
+                      <div class="fs-7">增加進度紀錄</div>
+                    </div>
                     <!-- 進度列表 -->
-                    <MDBCol md="12" class="mt-2">
-                      
+                    <!-- 標題 -->
+                    <MDBCol col="11" class="mt-2 fs-7 border-bottom">
+                      <MDBRow class="h-100 align-items-stretch">
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div>日期</div>
+                        </MDBCol>
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div>預估進度</div>
+                        </MDBCol>
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div>實際進度</div>
+                        </MDBCol>
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div>差異</div>
+                        </MDBCol>
+                      </MDBRow>
+                    </MDBCol>
+                    <!-- 刪除 -->
+                    <MDBCol col="1" class="mt-2p-0">
+                    </MDBCol>
+                  </MDBRow>
+                  <!-- 列表 -->
+                  <MDBDatepicker v-show="false"
+                    id="scheduleDatePicker"
+                    size="sm" v-model="scheduleDateTemp" 
+                    ref="scheduleDateDOM"
+                    format="YYYY-MM-DD"
+                    class="px-1 py-0"
+                    :monthsFull = "monthsFull"
+                    :monthsShort = "monthsShort"
+                    :weekdaysFull = "weekdaysFull"
+                    :weekdaysShort = "weekdaysShort"
+                    :weekdaysNarrow = "weekdaysNarrow"
+                    confirmDateOnSelect
+                    removeCancelBtn
+                    removeOkBtn
+                    @update:model-value="updateSchDate(e)"/>
+                  <MDBRow v-for="(sitem, sid) in nowCaseData.case.data.schedule" 
+                    class="align-items-stretch my-0">
+                    <!-- 進度內容 -->
+                    <MDBCol col="11" class="fs-7">
+                      <MDBRow class="h-100 align-items-stretch">
+                        <!-- 日期 -->
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div class="d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
+                            <!-- 年 -->
+                            <div class="w-50 h-100">
+                              {{ getSchYear(sitem.date, sid) }}
+                            </div>
+                            <!-- 日期 -->
+                            <div class="ms-1 w-50 h-100">
+                              {{ getSchMD(sitem.date) }}
+                            </div>
+                          </div>
+                        </MDBCol>
+                        <!-- 預估進度 -->
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <MDBInput 
+                            size="sm"
+                            class="px-1 py-0 text-end"
+                            v-model="sitem.estimated"/>%
+                        </MDBCol>
+                        <!-- 實際進度 -->
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <MDBInput 
+                            size="sm"
+                            class="px-1 py-0 text-end"
+                            v-model="sitem.actual"/>%
+                        </MDBCol>
+                        <!-- 差異 -->
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div v-if="!sitem.actual"></div>
+                          <div v-else
+                            :class="['text-end',(parseFloat(sitem.actual) - parseFloat(sitem.estimated))>=0?'text-success':'text-danger']"
+                            >{{ (parseFloat(sitem.actual) - parseFloat(sitem.estimated))>=0?'+':'' }}{{  (parseFloat(sitem.actual) - parseFloat(sitem.estimated)).toFixed(2) }}%
+                          </div>
+                        </MDBCol>
+                      </MDBRow>
+                    </MDBCol>
+                    <!-- 刪除按鈕 -->
+                    <MDBCol col="1" class="p-0">
+                      <MDBBtn 
+                        size="sm" 
+                        class="px-2 flex-fill text-danger"
+                        @click.stop="removeSchedule($event,sid)">
+                        <i class="far fa-trash-alt"></i>
+                      </MDBBtn>
                     </MDBCol>
                   </MDBRow>
                 </template>
               </AccordionItem>
-              <!-- 其他項目 -->
+  <!-- 其他項目========================= -->
               <AccordionItem
                 v-for="(item,idx) in nowCaseData.case.data.items"
                 :item-name="item.name" 
@@ -1707,19 +1841,17 @@ onMounted(()=>{
                         </div>
                         <!-- 上傳檔案===Start -->
                         <MDBCol v-for="(upload, iup) in item.uploads" col="12" class="mt-2">
-                          <upload
+                          <uploadtool
                             label-id="itemUpload"
                             v-model:model-value="upload.title"
-                            :dl-path="nowCaseDataDL.items[idx][iup]"
-                            :case-id="nowCaseData.case.id"
-                            :item-id="item.id"
-                            :upload-key="iup"
-                            :upload-id="upload.id"
+                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/' + item.id + '/' + upload.filename"
+                            :upload-key="parseInt(iup)"
+                            :upload-id="parseInt(upload.id)"
                             :r-group="rGroup[2]"
                             :upload-btn="uploadBtn"
                             :download-file="downloadFile"
                             :remove-upload-file="removeUploadFile"
-                          ></upload>
+                          ></uploadtool>
                         </MDBCol>
                         <!-- 上傳檔案===End -->
                       </MDBRow>
@@ -1728,6 +1860,31 @@ onMounted(()=>{
                   </MDBRow>
                 </template>
               </AccordionItem>
+            </MDBCol>
+<!-- 文字顯示模式===================== -->
+            <MDBCol v-show="showJson" col="12" :style="'height: calc(100% - ' + caseDataToolHeight + 'rem);'" class="overflow-auto">
+              <MDBRow class="h-100 align-content-start">
+                <MDBCol col="12" style="height: calc(80% - 3rem);">
+                  <textarea
+                    class="fs-7 w-100 h-100 textarea-noresize" 
+                    wrap="off"
+                    spellcheck="false"
+                    :value = "JSON.stringify(nowCaseData.case,null,2)"
+                    @input="textJsonChange($event)"
+                  ></textarea>
+                </MDBCol>
+                <MDBCol col="12">
+                  格式檢查：<i :class="['fas fa-circle',jsonChecked?'text-success':'text-danger',jsonChecked===null?'text-black-50':'']"></i>
+                </MDBCol>
+                <MDBCol col="12" style="height: 20%;">
+                  <textarea
+                    class = 'fs-7 w-100 h-100 textarea-noresize'
+                    spellcheck="false"
+                    readonly
+                    :value = "jsonChErr"
+                    ></textarea>
+                </MDBCol>
+              </MDBRow>
             </MDBCol>
           </MDBRow>
         </MDBContainer>
@@ -1969,5 +2126,8 @@ input.border-danger + label + div>div{
 }
 .fs-7{
   font-size: smaller;
+}
+.textarea-noresize{
+  resize: none;
 }
 </style>
