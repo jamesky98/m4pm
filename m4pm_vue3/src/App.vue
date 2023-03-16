@@ -60,4 +60,50 @@ html, body, #app{
 table.dataTable {
   font-size: smaller;
 }
+
+/* Tooltip container */
+.mytooltip {
+  position: relative;
+  display: inline-block;
+}
+
+/* Tooltip text */
+.mytooltip .mytooltiptext {
+  visibility: visible;
+  width: 120px;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+
+  /* Position the tooltip text */
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -60px;
+
+  /* Fade in tooltip */
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.mytooltip .mytooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #555 transparent transparent transparent;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.mytooltip:hover .mytooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
 </style>

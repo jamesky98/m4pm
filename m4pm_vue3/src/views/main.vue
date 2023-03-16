@@ -12,7 +12,7 @@ import {
   MDBBtn, MDBPopconfirm, MDBBtnClose,
   MDBAccordion, MDBAccordionItem,
   MDBSpinner,
-  MDBAnimation,
+  MDBAnimation, MDBTooltip,
   MDBAlert,
   MDBModal, MDBModalHeader, MDBModalTitle, MDBModalBody, MDBModalFooter,
   MDBTabs, MDBTabNav, MDBTabContent, MDBTabItem, MDBTabPane,
@@ -46,7 +46,7 @@ getchecktoken().then(res=>{
   getNowUser(result => {
     if (!result.loading && result && result.data.getNowUser) {
       let getData = result.data.getNowUser;
-      // console.log('getData',getData);
+      // console.log('user-getData',getData);
       myUserId.value = parseInt(getData.user_id);
       myUserName.value = getData.user_name;
       myUserRole.value = getData.role;
@@ -57,6 +57,7 @@ getchecktoken().then(res=>{
         usersetting.value = {};
         timebarType.value = 0;
       }
+      // console.log('user-usersetting',usersetting.value);
     }
   });
 
@@ -87,6 +88,15 @@ getchecktoken().then(res=>{
   const dragkey = ref(0);
   const showJson = ref(false);
   const jsonChErr = ref('');
+
+  const tips01 = ref(false);
+  const tips02 = ref(false);
+  const tips03 = ref(false);
+  const tips04 = ref(false);
+  const tips05 = ref(false);
+  const tips06 = ref(false);
+  const tips07 = ref(false);
+  const tips08 = ref(false);
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -282,10 +292,13 @@ getchecktoken().then(res=>{
   }
   // 設定初始時間軸起始點
   function initFirstDate(){
-    let nowDate = new Date();
-    // console.log('nowDate',nowDate);
-    let firstDateObj = new Date(nowDate.getFullYear(),0,1);
-    // console.log('firstDateObj',firstDateObj);
+    let firstDateObj;
+    if(usersetting.value.firstDateNum){
+      firstDateObj = new Date(usersetting.value.firstDateNum);
+    }else{
+      let nowDate = new Date();
+      firstDateObj = new Date(nowDate.getFullYear(),0,1);
+    }
     timebarFirstDateNum.value = firstDateObj.valueOf();
     timebarFirstDateStr.value = toLocalDateString(firstDateObj);
     
@@ -903,7 +916,7 @@ getchecktoken().then(res=>{
   // 記錄使用者排序
   function recordCaseSort(orgArray){
     let result=[];
-    console.log('orgArray',orgArray)
+    // console.log('orgArray',orgArray)
     for(let i=0;i<orgArray.length;i++){
       result.push(parseInt(orgArray[i].id));
       // console.log('result-'+i,result)
@@ -917,7 +930,7 @@ getchecktoken().then(res=>{
         }
       }
     }
-    console.log('sort-result',result)
+    // console.log('sort-result',result)
     return result
   }
   // 新增案件(清空案件基本資料)
@@ -1018,6 +1031,15 @@ getchecktoken().then(res=>{
       // console.log($('.item-mark-selected'));
       $('.item-mark-selected').removeClass('item-mark-selected');
     }
+  })
+
+  watch(timebarFirstDateNum,(newFirstDateNum)=>{
+    usersetting.value ={ ...usersetting.value ,firstDateNum:newFirstDateNum};
+    // console.log('usersetting',usersetting.value)
+    saveUserSet({
+      userId: myUserId.value,
+      setting: usersetting.value
+    });
   })
   // 移動Array內容
   function moveArray(array,from,to){
@@ -1218,8 +1240,8 @@ getchecktoken().then(res=>{
         // console.log(allCases.value)
         return newArray
       }).then(res=>{
-        // console.log('usersetting.casesort',usersetting.value.casesort)
         usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
+        console.log('usersetting',usersetting.value)
         return usersetting.value
       }).then(res=>{
         return saveUserSet({
@@ -1383,25 +1405,49 @@ onMounted(()=>{
               <div :style="'height: '+ topTBarHeight +'rem;'" class="d-flex justify-content-end align-items-center">
                 <!-- 增加案件 -->
                 <div>
-                  <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="createNewCase">
-                    <i class="fas fa-plus"></i>
-                  </MDBBtn>
+                  <MDBTooltip v-model="tips01">
+                    <template #reference>
+                      <MDBBtn 
+                        :disabled="!rGroup[3]" 
+                        size="sm" color="primary" @click.stop="createNewCase">
+                        <i class="fas fa-plus"></i>
+                      </MDBBtn>
+                    </template>
+                    <template #tip>
+                      增加案件
+                    </template>
+                  </MDBTooltip>
                 </div>
                 <!-- 刪除案件 -->
                 <div>
-                  <MDBBtn class="" size="sm" color="primary" @click.stop="">
-                    <i class="fas fa-minus"></i>
-                  </MDBBtn>
+                  <MDBTooltip v-model="tips02">
+                    <template #reference>
+                      <MDBBtn class="mytooltip" size="sm" color="primary" @click.stop="">
+                        <i class="fas fa-minus"></i>
+                      </MDBBtn>
+                    </template>
+                    <template #tip>
+                      刪除案件
+                    </template>
+                  </MDBTooltip>
                 </div>
               </div>
             </div>
             <!-- 右上 時間控制 變動寬度 -->
             <div :style="'width: calc(100% - ' + leftCaseWidth + 'rem);'" class="h-100 border-start">
               <div :style="'height: ' + topTimeToolH + 'rem;'" class="d-flex justify-content-between border-bottom overflow-hidden">
-                <div class="d-flex align-items-center">
-                  <div>{{timebarFirstDateStr}}</div>
-                  <div><MDBBtn size="sm" color="primary" @click.stop="moveTBar(-1)">前</MDBBtn></div>
-                  
+                <!-- 向前 -->
+                <div class="h-100 d-flex align-items-center">
+                  <MDBBtn size="sm" color="info" class="w-100 h-100 bg-gradient" @click.stop="moveTBar(-1)">
+                    <div class="d-flex align-items-center justify-content-center">
+                      <div class="me-2"><i class="fas fa-angle-double-left"></i></div>
+                      <div>
+                        {{ timebarFirstDateStr.split('-')[0] }}
+                        <br>
+                        {{ timebarFirstDateStr.split('-')[1] + '/' + timebarFirstDateStr.split('-')[2] }}
+                      </div>
+                    </div>
+                  </MDBBtn>
                 </div>
                 <div style="position:relative;" class="d-flex justify-content-center align-items-center flex-grow-1">
                   <div class="d-flex flex-column">
@@ -1409,14 +1455,50 @@ onMounted(()=>{
                     <div v-show="isPointerShow" class="align-items-center">游標：{{timebarPtDateStr}}</div>
                   </div>
                   <div style="position:absolute;top:0.25rem; right: 1rem">
-                    <MDBBtn size="sm" color="primary" @click.stop="goToDay(timebarToDayNum)">今日</MDBBtn>
-                    <MDBBtn size="sm" color="primary" @click.stop="changeTimeBarType()">{{timebarStepList[timebarType]}}</MDBBtn>
-                    <MDBBtn size="sm" color="primary" @click.stop="useTimePointer()">＋</MDBBtn>
+                    <MDBTooltip v-model="tips03" direction="bottom">
+                      <template #reference>
+                        <MDBBtn size="sm" color="primary" @click.stop="goToDay(timebarToDayNum)">
+                          今日
+                        </MDBBtn>
+                      </template>
+                      <template #tip>
+                        跳到今日位置
+                      </template>
+                    </MDBTooltip>
+                    <MDBTooltip v-model="tips04" direction="bottom">
+                      <template #reference>
+                        <MDBBtn size="sm" color="primary" @click.stop="changeTimeBarType()">
+                          {{timebarStepList[timebarType]}}
+                        </MDBBtn>
+                      </template>
+                      <template #tip>
+                        切換時間尺度
+                      </template>
+                    </MDBTooltip>
+                    <MDBTooltip v-model="tips05" direction="bottom">
+                      <template #reference>
+                        <MDBBtn size="sm" color="primary" class="mytooltip" @click.stop="useTimePointer()">
+                          ＋
+                        </MDBBtn>
+                      </template>
+                      <template #tip>
+                        顯示時間游標
+                      </template>
+                    </MDBTooltip>
                   </div>
                 </div>
+                <!-- 向後 -->
                 <div class="d-flex align-items-center">
-                  <div><MDBBtn size="sm" color="primary" @click.stop="moveTBar(1)">後</MDBBtn></div>
-                  <div>{{timebarLastDateStr}}</div>
+                  <MDBBtn size="sm" color="info" class="w-100 h-100 bg-gradient" @click.stop="moveTBar(1)">
+                    <div class="d-flex align-items-center justify-content-center">
+                      <div>
+                        {{ timebarLastDateStr.split('-')[0] }}
+                        <br>
+                        {{ timebarLastDateStr.split('-')[1] + '/' + timebarLastDateStr.split('-')[2] }}
+                      </div>
+                      <div class="ms-2"><i class="fas fa-angle-double-right"></i></div>
+                    </div>
+                  </MDBBtn>
                 </div>
               </div>
             </div>
@@ -1515,20 +1597,49 @@ onMounted(()=>{
                   <MDBRow class="justify-content-start">
                     <MDBCol>
                       <!-- 儲存 -->
-                      <MDBBtn :disabled="!rGroup[3] || (nowCaseData.case.id==='')" size="sm" color="primary" @click.stop="saveCaseBtn">儲存</MDBBtn>
+                      <MDBBtn 
+                        :disabled="!rGroup[3] || (nowCaseData.case.id==='')" 
+                        size="sm" color="primary" 
+                        @click.stop="saveCaseBtn">
+                        儲存
+                      </MDBBtn>
                       <!-- 增加項目 -->
-                      <MDBBtn :disabled="!rGroup[3]" class="" size="sm" color="primary" @click.stop="addItem">
-                        <i class="fas fa-plus"></i>
-                      </MDBBtn>
+                      <MDBTooltip v-model="tips06">
+                        <template #reference>
+                          <MDBBtn 
+                            :disabled="!rGroup[3]" 
+                            class="" size="sm" color="primary" 
+                            @click.stop="addItem">
+                            <i class="fas fa-plus"></i>
+                          </MDBBtn>
+                        </template>
+                        <template #tip>
+                          增加項目
+                        </template>
+                      </MDBTooltip>
                       <!-- 刪除項目 -->
-                      <MDBBtn class="" size="sm" color="primary" @click.stop="">
-                        <i class="fas fa-minus"></i>
-                      </MDBBtn>
+                      <MDBTooltip v-model="tips07">
+                        <template #reference>
+                          <MDBBtn class="" size="sm" color="primary" @click.stop="">
+                            <i class="fas fa-minus"></i>
+                          </MDBBtn>
+                        </template>
+                        <template #tip>
+                          刪除項目
+                        </template>
+                      </MDBTooltip>
                       <!-- 顯示模式 -->
-                      <MDBBtn class="" size="sm" color="primary" @click.stop="showJson=!showJson">
-                        <i v-if="!showJson" class="fas fa-table"></i>
-                        <i v-else class="fas fa-align-justify"></i>
-                      </MDBBtn>
+                      <MDBTooltip v-model="tips08">
+                        <template #reference>
+                          <MDBBtn class="" size="sm" color="primary" @click.stop="showJson=!showJson">
+                            <i v-if="!showJson" class="fas fa-table"></i>
+                            <i v-else class="fas fa-align-justify"></i>
+                          </MDBBtn>
+                        </template>
+                        <template #tip>
+                          顯示模式切換
+                        </template>
+                      </MDBTooltip>
                     </MDBCol>
                     <MDBCol class="col-12">
                       目前案件：{{nowCaseData.case.id}}-{{nowCaseData.case.code}} 
@@ -1585,7 +1696,8 @@ onMounted(()=>{
                             :readonly="true"
                             :hasclose="true"
                             :model-value="nowCaseData.case.data.base.baseTable"
-                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/' + nowCaseData.case.data.base.baseTable"
+                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/'"
+                            :dl-filename="nowCaseData.case.data.base.baseTable"
                             :r-group="rGroup[2]"
                             :upload-btn="uploadBtn"
                             :download-file="downloadFile"
@@ -1778,12 +1890,14 @@ onMounted(()=>{
                     </MDBCol>
                     <!-- 刪除按鈕 -->
                     <MDBCol col="1" class="p-0">
-                      <MDBBtn 
-                        size="sm" 
-                        class="px-2 flex-fill text-danger"
-                        @click.stop="removeSchedule($event,sid)">
+                      <MDBPopconfirm
+                        modal
+                        class="btn-sm btn-secondary px-2 flex-fill text-danger"
+                        message="刪除後無法恢復，確定刪除嗎？" 
+                        cancelText="取消" 
+                        confirmText="確定" @confirm="removeSchedule($event,sid)">
                         <i class="far fa-trash-alt"></i>
-                      </MDBBtn>
+                      </MDBPopconfirm>
                     </MDBCol>
                   </MDBRow>
                 </template>
@@ -1854,7 +1968,8 @@ onMounted(()=>{
                           <uploadtool
                             label-id="itemUpload"
                             v-model:model-value="upload.title"
-                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/' + item.id + '/' + upload.filename"
+                            :dl-path="publicPath + '01_Case/' + nowCaseData.case.id + '/' + item.id + '/'"
+                            :dl-filename="upload.filename"
                             :upload-key="parseInt(iup)"
                             :upload-id="parseInt(upload.id)"
                             :r-group="rGroup[2]"
@@ -2140,4 +2255,5 @@ input.border-danger + label + div>div{
 .textarea-noresize{
   resize: none;
 }
+
 </style>

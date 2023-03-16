@@ -1,7 +1,7 @@
 <script setup>
   import { ref,onMounted, inject, watch, computed } from "vue";
   import {
-    MDBInput, 
+    MDBInput, MDBPopconfirm,
     MDBBtn, MDBBtnClose,
     MDBCol, MDBRow,
   } from 'mdb-vue-ui-kit';
@@ -13,6 +13,7 @@
     labelId: {type: String, default:''},
     modelValue: {type:String},
     dlPath: {type:String},
+    dlFilename: {type:String},
     uploadId: {type:Number},
     uploadKey: {type:Number, default:0},
     readonly: {type: Boolean, default:false},
@@ -26,7 +27,7 @@
   const inputBox = ref();
 
   function downloadBtn(e){
-    props.downloadFile(props.dlPath, props.modelValue)
+    props.downloadFile(props.dlPath + props.dlFilename, props.modelValue)
   }
 
   function removeBtn(e){
@@ -85,29 +86,34 @@
         @click="props.uploadBtn(props.labelId,props.uploadId)">
         上傳
       </MDBBtn>
+      <!-- 下載 -->
       <MDBBtn 
+        :disabled="!props.dlFilename || props.dlFilename===''"
         size="sm" 
         color="secondary"
         class="px-1 flex-fill"
         @click.stop="downloadBtn($event)">
         下載
       </MDBBtn>
+      <!-- 檢視 -->
       <MDBBtn v-if="props.labelId!=='baseTable'"
-        tag="a"
-        target=_blank
-        :href="props.dlPath"
+        :disabled="!props.dlFilename || props.dlFilename===''"
         size="sm" 
         color="secondary"
         class="px-1 flex-fill">
-        <i class="far fa-eye"></i>
+        <a target=_blank :href="props.dlPath + props.dlFilename + '?t=' + new Date().getTime()">
+          <i class="far fa-eye"></i>
+        </a>
       </MDBBtn>
-      <MDBBtn v-if="props.labelId!=='baseTable'"
-        size="sm" 
-        color="secondary"
-        class="px-2 flex-fill text-danger"
-        @click.stop="removeBtn($event)">
+      <!-- 刪除 -->
+      <MDBPopconfirm v-if="props.labelId!=='baseTable'"
+        modal
+        class="btn-sm btn-secondary px-2 flex-fill text-danger"
+        message="刪除後無法恢復，確定刪除嗎？" 
+        cancelText="取消" 
+        confirmText="確定" @confirm="removeBtn($event)">
         <i class="far fa-trash-alt"></i>
-      </MDBBtn>
+      </MDBPopconfirm>
   </MDBCol>
 </MDBRow>
   
