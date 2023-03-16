@@ -1,5 +1,9 @@
 <script setup>
-import { ref,onMounted, inject } from "vue";
+import { ref, watch , onMounted ,inject } from "vue";
+import {
+  MDBCol, MDBRow, MDBContainer
+} from 'mdb-vue-ui-kit';
+import { computed } from "@vue/reactivity";
 
 const props = defineProps({
   isSubCase: {type: Boolean, default:false},
@@ -18,7 +22,47 @@ const timebarToDayLeft = inject('timebarToDayLeft');
 const activeItem = inject('activeItem');
 const splitSign = inject('splitSign');
 const checkShow = ref(false);
-// const showSubCase = ref(true);
+
+const actPercent = ref(0);
+const estPercent = ref(0);
+
+watch(() => props.caseData,(newCaseData)=>{
+  findSchedule(newCaseData);
+})
+
+function findSchedule(newCaseData){
+  let schedule = newCaseData.data.schedule;
+  let nowDate = new Date()
+  let nowDateNum = new Date(nowDate.getFullYear(),nowDate.getMonth(),nowDate.getDate()).getTime();
+  // 找日期最接近現在且小於等於現在的紀錄
+  let maxDateNum = 0;
+  let maxAct = 0;
+  let scheduleId = -1;
+  for(let i=0;i<schedule.length;i++){
+    if(schedule[i].date){
+      if(schedule[i].date.trim()!==''){
+        // 轉換成dateNum
+        let checkDateNum = new Date(schedule[i].date).getTime();
+        // 判斷小於等於今日且大於等於max
+        if((nowDateNum - checkDateNum)>=0 && (checkDateNum-maxDateNum)>=0){
+          maxDateNum = checkDateNum;
+          scheduleId = i;
+          if(parseFloat(schedule[i].actual)>=maxAct){
+            maxAct = parseFloat(schedule[i].actual);
+          }
+        }
+      }
+    }
+  }
+  // 搜尋完畢，填入進度值
+  if(scheduleId>-1){
+    actPercent.value = (maxAct)?parseFloat(maxAct).toFixed(2):0;
+    estPercent.value = (schedule[scheduleId].estimated)?parseFloat(schedule[scheduleId].estimated).toFixed(2):0;
+  }else{
+    actPercent.value = 0;
+    estPercent.value = 0;
+  }
+}
 
 function checkchange(e){
   let changeshow = checkShow.value
@@ -28,6 +72,7 @@ function checkchange(e){
 
 onMounted(()=>{
   checkShow.value = props.showSub;
+  findSchedule(props.caseData);
 })
 
 </script>
@@ -112,23 +157,79 @@ onMounted(()=>{
           </div>
         </div>
       </div>
-      <!-- 執行進度 -->
-      <div style="position: relative;" class="w-100 flex-fill">
-    
-        <div 
-          :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: red; width:0'" 
-          class="border"></div>  
-      </div>
-      <!-- 經費使用 -->
-      <div style="position: relative;" class="w-100 flex-fill">
+      <MDBContainer>
+        <MDBRow>
+        <!-- 執行進度 -->
         
-        <div 
-          :style="'position: absolute;height: 1rem;top:calc((100% / 2) - 0.5rem);left:0 ;background-color: yellow; width:0'" 
-          class="border"></div>
-      </div>
+        <MDBCol col="6" style="position:relative; height: 3rem;" class="">
+          <div style="position:absolute;" class="back-bar"></div>
+          <div style="position:absolute; width: calc(100% - 1.5rem);bottom: 0.75rem;">
+            <div :style="'width:'+ estPercent + '%'" class="est-bar"></div>
+          </div>
+          <div style="position:absolute; width: calc(100% - 1.5rem);bottom: 0.75rem;">
+            <div :style="'width:'+ actPercent + '%'" class="act-bar"></div>
+          </div>
+          <div style="position:absolute; bottom:1.6rem;right: 0.75rem;">
+            <span class="schedule-text">
+              進度 {{actPercent}}% 
+              <span class="schedule-est">
+                / {{estPercent}}% 
+              </span>
+              <span :class="['schedule-diff',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
+                {{ (parseFloat(actPercent) - parseFloat(estPercent))>=0?'+':'' }}{{ (parseFloat(actPercent) - parseFloat(estPercent)).toFixed(2) }}%
+              </span>
+            </span>
+          </div>
+        </MDBCol>
+        <!-- 經費使用 -->
+        <MDBCol col="6" class="border">
+          經費
+        </MDBCol>
+      </MDBRow>
+      </MDBContainer>
     </div>
     <!-- 框線 -->
     <div style="position:absolute; top:0;lef:0;" class="h-100 w-100 boxline"></div>
   </div>
   
 </template>
+<style scoped>
+.act-bar {
+  height: 1rem;
+  background: 
+    linear-gradient(135deg, transparent 0.75rem, hsl(60, 100%, 60%) 0, hsl(60, 100%, 40%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  /* filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%)); */
+}
+.est-bar {
+  height: 1rem;
+  background: 
+    linear-gradient(135deg, transparent 0.75rem, hsl(205, 100%, 40%) 0, hsl(205, 100%, 80%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%));
+}
+.back-bar {
+  width: calc(100% - 1.5rem);
+  height: 1.25rem;
+  bottom: 0.5rem;
+  background: 
+    linear-gradient(135deg, transparent 1rem, rgba(0, 0, 0, 0.1) 0, rgba(0, 0, 0, 0.4) calc(100% - 1rem),transparent calc(100% - 1rem)) top left;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+.schedule-text{
+  font-size: 1rem;
+  color: yellow; 
+  text-shadow: black 0 0 0.2rem,black 0 0 0.2rem,black 0 0 0.2rem;
+}
+.schedule-est{
+  color: blue; 
+  text-shadow: black 0 0 0.2rem;
+}
+.schedule-diff{
+  font-size: 0.9rem;
+  text-shadow: none;
+}
+</style>

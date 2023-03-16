@@ -1438,7 +1438,7 @@ onMounted(()=>{
               <div :style="'height: ' + topTimeToolH + 'rem;'" class="d-flex justify-content-between border-bottom overflow-hidden">
                 <!-- 向前 -->
                 <div class="h-100 d-flex align-items-center">
-                  <MDBBtn size="sm" color="info" class="w-100 h-100 bg-gradient" @click.stop="moveTBar(-1)">
+                  <MDBBtn size="sm" color="info" class="m-0 w-100 h-100 bg-gradient" @click.stop="moveTBar(-1)">
                     <div class="d-flex align-items-center justify-content-center">
                       <div class="me-2"><i class="fas fa-angle-double-left"></i></div>
                       <div>
@@ -1489,7 +1489,7 @@ onMounted(()=>{
                 </div>
                 <!-- 向後 -->
                 <div class="d-flex align-items-center">
-                  <MDBBtn size="sm" color="info" class="w-100 h-100 bg-gradient" @click.stop="moveTBar(1)">
+                  <MDBBtn size="sm" color="info" class="m-0 w-100 h-100 bg-gradient" @click.stop="moveTBar(1)">
                     <div class="d-flex align-items-center justify-content-center">
                       <div>
                         {{ timebarLastDateStr.split('-')[0] }}
