@@ -24,7 +24,6 @@
     removeUploadFile: {type: Function},
   });
   const emit = defineEmits(['update:modelValue']);
-  const inputBox = ref();
 
   function downloadBtn(e){
     props.downloadFile(props.dlPath + props.dlFilename, props.modelValue)
@@ -44,7 +43,6 @@
     <MDBRow>
       <MDBCol col="12" class="">
         <MDBInput 
-          ref="inputBox"
           :readonly="props.readonly" 
           size="sm" type="text"
           :label="props.label" 
@@ -65,7 +63,6 @@
       </MDBCol>
       <MDBCol col="10" class="px-0">
         <MDBInput 
-          ref="inputBox"
           :readonly="props.readonly" 
           size="sm" type="text"
           :label="props.label" 

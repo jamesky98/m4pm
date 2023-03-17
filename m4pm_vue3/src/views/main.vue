@@ -4,6 +4,7 @@ import Navbar1 from "../components/Navbar.vue";
 import AccordionItem from "../components/AccordionItem.vue"
 import CaseBar from "../components/CaseBar.vue"
 import uploadtool from "../components/uploadtool.vue"
+import curInput from "../components/curInput.vue"
 import path from "path-browserify";
 import {
   MDBCol, MDBRow, MDBContainer,
@@ -594,7 +595,7 @@ getchecktoken().then(res=>{
         res.width = (eDNum - sDNum) * scale;
         // 今日前
         if((todayNum - sDNum) > 0){
-          if((todayNum - sDNum)<dDnum){
+          if((todayNum - sDNum)<(eDNum - sDNum)){
             res.passWidth = (todayNum - sDNum) * scale;
           }else{
             res.passWidth = res.width
@@ -1763,46 +1764,46 @@ onMounted(()=>{
                   <!-- 金額 -->
                   <MDBRow class="pb-2 border-bottom">
                     <MDBCol col="6" class="pe-0 mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        label="採購金額" 
-                        class="text-end"
-                        v-model:model-value="purchaseAM"
-                        @update:model-value="dataFromCurrency('purchase_am',$event)"/>
-                    </MDBCol>
+                      <curInput
+                        size="sm"
+                        model-class="text-end"
+                        label="採購金額"
+                        v-model:model-value="nowCaseData.case.data.base.purchase_am"
+                        :key="nowCaseData.case.id"
+                      />
+                    </MDBCol> 
                     <MDBCol col="6" class="ps-0 mt-2"><div>=</div></MDBCol>
                     <MDBCol col="6" class="pe-0 mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        class="text-end flex-fill"
-                        label="預算金額" 
-                        v-model:model-value="budgetAM"
-                        @update:model-value="dataFromCurrency('budget_am',$event)"/>
+                      <curInput
+                        size="sm"
+                        model-class="text-end"
+                        label="預算金額"
+                        v-model:model-value="nowCaseData.case.data.base.budget_am"
+                        :key="nowCaseData.case.id"
+                      />
                     </MDBCol>
                     <MDBCol col="6" class="ps-0 mt-2 d-flex">
                       <div>+</div>
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        class="text-end flex-fill"
-                        label="擴充金額" 
-                        v-model:model-value="additionAM"
-                        @update:model-value="dataFromCurrency('addition_am',$event)"/>
+                      <curInput
+                        size="sm"
+                        model-class="text-end"
+                        label="擴充金額"
+                        v-model:model-value="nowCaseData.case.data.base.addition_am"
+                        :key="nowCaseData.case.id"
+                      />
                     </MDBCol>
                     <MDBCol md="12" class="mt-2">
-                      <MDBInput 
-                        size="sm" 
-                        type="text" 
-                        class="text-end border-danger"
-                        label="決標金額" 
-                        v-model:model-value="awardPrice"
-                        @update:model-value="dataFromCurrency('award_price',$event)"/>
+                      <curInput
+                        size="sm"
+                        model-class="text-end border-danger"
+                        label="決標金額"
+                        v-model:model-value="nowCaseData.case.data.base.award_price"
+                        :key="nowCaseData.case.id"
+                      />
                     </MDBCol>
                   </MDBRow>
-                  <!-- 付款列表 -->
-                  <MDBRow class="pb-2 align-items-stretch">
+                  <!-- 付款列表-標題 -->
+                  <MDBRow class="pb-2 align-items-stretch border-bottom">
                     <div class="d-flex mt-2">
                       <!-- 增加檔案 -->
                       <MDBBtn 
@@ -1813,7 +1814,7 @@ onMounted(()=>{
                     </div>
                     <!-- 付款列表 -->
                     <!-- 標題 -->
-                    <MDBCol col="10" class="mt-2 fs-7 border-bottom">
+                    <MDBCol col="10" class="mt-2 fs-7">
                       <MDBRow class="h-100 align-items-stretch">
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
                           <div>階段</div>
@@ -1844,10 +1845,11 @@ onMounted(()=>{
                     removeOkBtn
                     @update:model-value="updatePayDate(e)"/>
                   <MDBRow v-for="(pitem, sid) in nowCaseData.case.data.pay" 
-                    class="align-items-stretch my-0">
+                    class="align-items-stretch pb-2 border-bottom">
                     <!-- 付款內容 -->
                     <MDBCol col="10" class="">
                       <MDBRow class="h-100 align-items-stretch">
+                        <!-- 階段與比例 -->
                         <MDBCol col="3" class="h-100">
                           <MDBRow class="h-100">
                             <!-- 階段 -->
@@ -1856,31 +1858,37 @@ onMounted(()=>{
                                 {{ '第' + (sid+1) + '階段'}}
                               </div>
                             </MDBCol>
+                            <!-- 付款比例 -->
                             <MDBCol col="12" class="fs-7 h-50 d-flex justify-content-center align-items-center">
                               <MDBInput 
                                 size="sm"
-                                class="px-1 py-0 text-end"
+                                class="text-end"
                                 v-model="pitem.ratio"/>%
                             </MDBCol>
                           </MDBRow>
                         </MDBCol>
+                        <!-- 金額 -->
                         <MDBCol col="9" class="h-100">
                           <MDBRow class="h-100">
                             <!-- 預估付款金額 -->
                             <MDBCol col="6" class="px-0 mt-2">
-                              <MDBInput 
-                                label="規劃付款"
+                              <curInput
                                 size="sm"
-                                class="px-1 text-end"
-                                v-model="pitem.estimated"/>
+                                model-class="text-end"
+                                label="契約價金"
+                                v-model:model-value.number="pitem.estimated"
+                                :key="nowCaseData.case.id"
+                              />
                             </MDBCol>
                             <!-- 扣款 -->
                             <MDBCol col="6" class="px-0 mt-2">
-                              <MDBInput 
-                                label="扣款"
+                              <curInput
                                 size="sm"
-                                class="px-1 text-end"
-                                v-model="pitem.estimated"/>
+                                model-class="text-end"
+                                label="扣款"
+                                v-model:model-value.number="pitem.chargeback"
+                                :key="nowCaseData.case.id"
+                              />
                             </MDBCol>
                             <!-- 日期 -->
                             <MDBCol col="6" class="px-0 mt-2">
@@ -1892,11 +1900,13 @@ onMounted(()=>{
                             </MDBCol>
                             <!-- 實際付款金額 -->
                             <MDBCol col="6" class="px-0 mt-2">
-                              <MDBInput 
-                              label="實付金額"
+                              <curInput
                                 size="sm"
-                                class="px-1 text-end"
-                                v-model="pitem.actual"/>
+                                model-class="text-end"
+                                label="實付金額"
+                                v-model:model-value.number="pitem.actual"
+                                :key="nowCaseData.case.id"
+                              />
                             </MDBCol>
                           </MDBRow>
                         </MDBCol>
@@ -1907,7 +1917,7 @@ onMounted(()=>{
                       <MDBContainer class="h-100">
                         <MDBRow class="h-100 align-item-between">
                           <!-- 上傳 -->
-                          <MDBCol col="6" class="px-0 d-flex">
+                          <MDBCol col="6" class="mt-2 px-0 d-flex">
                             <MDBBtn 
                               :disabled="!rGroup[2]" 
                               size="sm" 
@@ -1918,7 +1928,7 @@ onMounted(()=>{
                             </MDBBtn>
                           </MDBCol>
                           <!-- 檢視 -->
-                          <MDBCol col="6" class="p-0 d-flex">
+                          <MDBCol col="6" class="mt-2 p-0 d-flex">
                             <MDBBtn 
                               :disabled="!pitem.filename || pitem.filename===''"
                               size="sm" 
@@ -1931,7 +1941,7 @@ onMounted(()=>{
                           </MDBCol>
                           <MDBCol col="6" class="p-0"></MDBCol>
                           <!-- 刪除 -->
-                          <MDBCol col="6" class="p-0 d-flex">
+                          <MDBCol col="6" class="mt-2 p-0 d-flex">
                             <MDBPopconfirm
                               modal
                               class="btn-sm btn-secondary p-0 flex-fill text-danger"

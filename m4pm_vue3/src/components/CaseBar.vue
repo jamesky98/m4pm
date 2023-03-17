@@ -160,16 +160,15 @@ onMounted(()=>{
       <MDBContainer>
         <MDBRow>
         <!-- 執行進度 -->
-        
         <MDBCol col="6" style="position:relative; height: 3rem;" class="">
-          <div style="position:absolute;" class="back-bar"></div>
-          <div style="position:absolute; width: calc(100% - 1.5rem);bottom: 0.75rem;">
-            <div :style="'width:'+ estPercent + '%'" class="est-bar"></div>
-          </div>
-          <div style="position:absolute; width: calc(100% - 1.5rem);bottom: 0.75rem;">
-            <div :style="'width:'+ actPercent + '%'" class="act-bar"></div>
-          </div>
-          <div style="position:absolute; bottom:1.6rem;right: 0.75rem;">
+          <!-- 總長 -->
+          <div class="back-bar"></div>
+          <!-- 預計進度 -->
+          <div :style="'width: calc('+ estPercent + '% - 1rem);'" class="est-bar"></div>
+          <!-- 實際進度 -->
+          <div :style="'width: calc('+ actPercent + '% - 1rem);'" class="act-bar"></div>
+          <!-- 數字 -->
+          <div style="position:absolute; bottom:1.1rem;right: 10%;">
             <span class="schedule-text">
               進度 {{actPercent}}% 
               <span class="schedule-est">
@@ -195,7 +194,11 @@ onMounted(()=>{
 </template>
 <style scoped>
 .act-bar {
-  height: 1rem;
+  position:absolute;
+  width: calc(100% - 1rem);
+  height: 0.5rem;
+  left: 0;
+  bottom: 0.75rem;
   background: 
     linear-gradient(135deg, transparent 0.75rem, hsl(60, 100%, 60%) 0, hsl(60, 100%, 40%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
   background-size: 100% 100%;
@@ -203,7 +206,11 @@ onMounted(()=>{
   /* filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%)); */
 }
 .est-bar {
-  height: 1rem;
+  position:absolute;
+  width: calc(100% - 1rem);
+  height: 0.5rem;
+  left: 0;
+  bottom: 0.75rem;
   background: 
     linear-gradient(135deg, transparent 0.75rem, hsl(205, 100%, 40%) 0, hsl(205, 100%, 80%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
   background-size: 100% 100%;
@@ -211,16 +218,18 @@ onMounted(()=>{
   filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%));
 }
 .back-bar {
-  width: calc(100% - 1.5rem);
-  height: 1.25rem;
+  position:absolute;
+  width: calc(100% - 1rem);
+  height: 0.6rem;
+  left: 0;
   bottom: 0.5rem;
   background: 
-    linear-gradient(135deg, transparent 1rem, rgba(0, 0, 0, 0.1) 0, rgba(0, 0, 0, 0.4) calc(100% - 1rem),transparent calc(100% - 1rem)) top left;
+    linear-gradient(135deg, transparent 0.75rem, rgba(0, 0, 0, 0.1) 0, rgba(0, 0, 0, 0.4) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 .schedule-text{
-  font-size: 1rem;
+  font-size: 13px;
   color: yellow; 
   text-shadow: black 0 0 0.2rem,black 0 0 0.2rem,black 0 0 0.2rem;
 }
@@ -229,7 +238,7 @@ onMounted(()=>{
   text-shadow: black 0 0 0.2rem;
 }
 .schedule-diff{
-  font-size: 0.9rem;
+  font-size: 13px;
   text-shadow: none;
 }
 </style>
