@@ -84,7 +84,7 @@
         color="primary" 
         class="px-1 flex-fill"
         @click="props.uploadBtn(props.labelId,props.uploadId)">
-        上傳
+        <i class="fas fa-upload"></i>
       </MDBBtn>
       <!-- 下載 -->
       <MDBBtn 
@@ -93,7 +93,7 @@
         color="secondary"
         class="px-1 flex-fill"
         @click.stop="downloadBtn($event)">
-        下載
+        <i class="fas fa-download"></i>
       </MDBBtn>
       <!-- 檢視 -->
       <MDBBtn v-if="props.labelId!=='baseTable'"
@@ -102,7 +102,7 @@
         color="secondary"
         class="px-1 flex-fill">
         <a target=_blank :href="props.dlPath + props.dlFilename + '?t=' + new Date().getTime()">
-          <i class="far fa-eye"></i>
+          <i class="fas fa-search"></i>
         </a>
       </MDBBtn>
       <!-- 刪除 -->

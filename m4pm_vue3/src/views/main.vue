@@ -188,7 +188,15 @@ getchecktoken().then(res=>{
     date: ' ',
     estimated: '',
     actual: '',
+    filename: '',
   }; // 進度表初始化資料
+  const newPayMoney = {
+    date: ' ',
+    estimated: '',
+    actual: '',
+    ratio: 0,
+    filename: '',
+  }; // 付款紀錄初始化資料
   const nowCaseData = reactive({case: JSON.parse(JSON.stringify(newCase))});
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
@@ -199,9 +207,14 @@ getchecktoken().then(res=>{
   const awardPrice = ref(""); // 決標金額
 
   const jsonChecked = ref(null);
+
   const scheduleDateTemp = ref(' ');
   const scheduleDateDOM = ref();
   const nowSchId = ref('');
+
+  const payDateTemp = ref(' ');
+  const payDateDOM = ref();
+  const nowPayId = ref('');
   // Case參數==============End
 
 //#endregion 參數==========End
@@ -740,8 +753,6 @@ getchecktoken().then(res=>{
       nowCaseData.case.data.items[i].finisheddate = (nowCaseData.case.data.items[i].finisheddate)?nowCaseData.case.data.items[i].finisheddate:' ';
     }
     // 處理schedule資料依日期排序
-    
-
     new Promise((res,rej)=>{
       let mySchedule = toRaw(nowCaseData.case.data.schedule);
       mySchedule.sort((a,b)=>{
@@ -1141,7 +1152,7 @@ getchecktoken().then(res=>{
       jsonChErr.value = 'name: '+ err.name + '\n'+'message: ' + err.message;
     }
   }
-
+  // ===========================
   // 增加進度紀錄
   function addSchedule(e){
     if(!nowCaseData.case.data.schedule){
@@ -1163,7 +1174,7 @@ getchecktoken().then(res=>{
     nowCaseData.case.data.schedule[parseInt(nowSchId.value)].date = scheduleDateTemp.value;
   }
   // 取得進度列表民國年
-  function getSchYear(dateStr,sid){
+    function getSchYear(dateStr,sid){
     let mydateObj = new Date(dateStr);
     if(sid>0){
       let predateObj = new Date(nowCaseData.case.data.schedule[sid-1].date);
@@ -1185,6 +1196,31 @@ getchecktoken().then(res=>{
       return ''
     }
   }
+  // ===========================
+  // 增加進度紀錄
+  function addPayRecord(e){
+    if(!nowCaseData.case.data.pay){
+      nowCaseData.case.data.pay=[];  
+    }
+    nowCaseData.case.data.pay.push(newPayMoney);
+  }
+  // 刪除進度紀錄
+  function removePayRecord(e,sid){
+    nowCaseData.case.data.pay.splice(sid,1);
+  }
+  // 開啟進度日期選擇器
+  function openPayDatePicker(e,sid){
+    nowPayId.value = sid;
+    payDateDOM.value.open();
+  }
+  // 更新進度日期欄
+  function updatePayDate(e){
+    nowCaseData.case.data.pay[parseInt(nowPayId.value)].date = payDateTemp.value;
+  }
+
+
+  // ===========================
+
 //#endregion 案件操作==========End
 
 //#region 拖曳操作==========Start
@@ -1274,6 +1310,9 @@ getchecktoken().then(res=>{
       case "itemUpload":
         inputDOM.setAttribute("accept","");
         break;
+      case "schUpload":
+        inputDOM.setAttribute("accept","");
+        break;
     }
     inputDOM.click();
   }
@@ -1303,7 +1342,12 @@ getchecktoken().then(res=>{
           title: e.target.files[0].name,
           filename: newName,
         }
-        console.log('newName',e.target.files[0].name)
+        // console.log('newName',e.target.files[0].name)
+        break;
+      case "schUpload":
+        subpath = "01_Case/" + nowCaseData.case.id + "/schedule/";
+        newName = "schedule_" + nowItemULidx.value + path.extname(e.target.value);
+        nowCaseData.case.data.schedule[nowItemULidx.value].filename = newName;
         break;
     }
     await uploadFile({
@@ -1328,7 +1372,9 @@ getchecktoken().then(res=>{
         saveCaseBtn();
         break;
       case "itemUpload":
-        // nowCaseData.case.data.base.baseTable = result.data.uploadFile.filename;
+        saveCaseBtn();
+        break;
+      case "schUpload":
         saveCaseBtn();
         break;
     }
@@ -1706,90 +1752,197 @@ onMounted(()=>{
                         <!-- 上傳檔案===End -->
                       </MDBRow>
                     </MDBCol>
-                    <!-- 期程 -->
-                    <MDBCol md="12" class="border rounded-3 border-myellow mt-2 py-2">
-                      <MDBRow>
-                        <MDBCol md="6" class="">
-                          <MDBDatepicker 
-                            size="sm" v-model="nowCaseData.case.data.base.startdate" 
-                            format="YYYY-MM-DD" label="起始日"
-                            :monthsFull = "monthsFull"
-                            :monthsShort = "monthsShort"
-                            :weekdaysFull = "weekdaysFull"
-                            :weekdaysShort = "weekdaysShort"
-                            :weekdaysNarrow = "weekdaysNarrow"
-                            confirmDateOnSelect
-                            removeCancelBtn
-                            removeOkBtn/>
+                  </MDBRow>
+                </template>
+              </AccordionItem>
+  <!-- 金額及付款========================= -->
+              <AccordionItem 
+                v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'money'" 
+                item-name="金額及付款" label-bg-color="#dc4c64">
+                <template v-slot:itemText>
+                  <!-- 金額 -->
+                  <MDBRow class="pb-2 border-bottom">
+                    <MDBCol col="6" class="pe-0 mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        label="採購金額" 
+                        class="text-end"
+                        v-model:model-value="purchaseAM"
+                        @update:model-value="dataFromCurrency('purchase_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol col="6" class="ps-0 mt-2"><div>=</div></MDBCol>
+                    <MDBCol col="6" class="pe-0 mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        class="text-end flex-fill"
+                        label="預算金額" 
+                        v-model:model-value="budgetAM"
+                        @update:model-value="dataFromCurrency('budget_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol col="6" class="ps-0 mt-2 d-flex">
+                      <div>+</div>
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        class="text-end flex-fill"
+                        label="擴充金額" 
+                        v-model:model-value="additionAM"
+                        @update:model-value="dataFromCurrency('addition_am',$event)"/>
+                    </MDBCol>
+                    <MDBCol md="12" class="mt-2">
+                      <MDBInput 
+                        size="sm" 
+                        type="text" 
+                        class="text-end border-danger"
+                        label="決標金額" 
+                        v-model:model-value="awardPrice"
+                        @update:model-value="dataFromCurrency('award_price',$event)"/>
+                    </MDBCol>
+                  </MDBRow>
+                  <!-- 付款列表 -->
+                  <MDBRow class="pb-2 align-items-stretch">
+                    <div class="d-flex mt-2">
+                      <!-- 增加檔案 -->
+                      <MDBBtn 
+                        :class="['curser-pointer','up-btn']"
+                        @click.stop="addPayRecord($event)"
+                        ><i class="fas fa-plus"></i></MDBBtn>
+                      <div class="fs-7">增加紀錄</div>
+                    </div>
+                    <!-- 付款列表 -->
+                    <!-- 標題 -->
+                    <MDBCol col="10" class="mt-2 fs-7 border-bottom">
+                      <MDBRow class="h-100 align-items-stretch">
+                        <MDBCol col="3" class="d-flex justify-content-center align-items-center">
+                          <div>階段</div>
                         </MDBCol>
-                        <MDBCol md="6" class="">
-                          <MDBDatepicker 
-                            size="sm" v-model="nowCaseData.case.data.base.enddate" 
-                            format="YYYY-MM-DD" label="結束日"
-                            :monthsFull = "monthsFull"
-                            :monthsShort = "monthsShort"
-                            :weekdaysFull = "weekdaysFull"
-                            :weekdaysShort = "weekdaysShort"
-                            :weekdaysNarrow = "weekdaysNarrow"
-                            confirmDateOnSelect
-                            removeCancelBtn
-                            removeOkBtn/>
-                        </MDBCol>
-                        <MDBCol md="6" class="mt-2">
-                          <MDBDatepicker 
-                            size="sm" v-model="nowCaseData.case.data.base.guarantee" 
-                            format="YYYY-MM-DD" label="保固期限"
-                            :monthsFull = "monthsFull"
-                            :monthsShort = "monthsShort"
-                            :weekdaysFull = "weekdaysFull"
-                            :weekdaysShort = "weekdaysShort"
-                            :weekdaysNarrow = "weekdaysNarrow"
-                            confirmDateOnSelect
-                            removeCancelBtn
-                            removeOkBtn/>
+                        <MDBCol col="9" class="d-flex justify-content-center align-items-center">
+                          <div>金額</div>
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
-                    <!-- 金額 -->
-                    <MDBCol md="12" class="border rounded-3 border-mlightgreen mt-2 py-2">
-                      <MDBRow>
-                        <MDBCol md="12" class="mt-2">
-                          <MDBInput 
-                            size="sm" 
-                            type="text" 
-                            label="採購金額" 
-                            class="text-end"
-                            v-model:model-value="purchaseAM"
-                            @update:model-value="dataFromCurrency('purchase_am',$event)"/>
+                    <!-- 功能按鈕 -->
+                    <MDBCol col="2" class="mt-2 p-0">
+                    </MDBCol>
+                  </MDBRow>
+                  <!-- 列表 -->
+                  <MDBDatepicker v-show="false"
+                    id="payDatePicker"
+                    size="sm" v-model="scheduleDateTemp" 
+                    ref="payDateDOM"
+                    format="YYYY-MM-DD"
+                    class="px-1 py-0"
+                    :monthsFull = "monthsFull"
+                    :monthsShort = "monthsShort"
+                    :weekdaysFull = "weekdaysFull"
+                    :weekdaysShort = "weekdaysShort"
+                    :weekdaysNarrow = "weekdaysNarrow"
+                    confirmDateOnSelect
+                    removeCancelBtn
+                    removeOkBtn
+                    @update:model-value="updatePayDate(e)"/>
+                  <MDBRow v-for="(pitem, sid) in nowCaseData.case.data.pay" 
+                    class="align-items-stretch my-0">
+                    <!-- 付款內容 -->
+                    <MDBCol col="10" class="">
+                      <MDBRow class="h-100 align-items-stretch">
+                        <MDBCol col="3" class="h-100">
+                          <MDBRow class="h-100">
+                            <!-- 階段 -->
+                            <MDBCol col="12" class="h-50 d-flex justify-content-center align-items-center">
+                              <div class="fs-7">
+                                {{ '第' + (sid+1) + '階段'}}
+                              </div>
+                            </MDBCol>
+                            <MDBCol col="12" class="fs-7 h-50 d-flex justify-content-center align-items-center">
+                              <MDBInput 
+                                size="sm"
+                                class="px-1 py-0 text-end"
+                                v-model="pitem.ratio"/>%
+                            </MDBCol>
+                          </MDBRow>
                         </MDBCol>
-                        <MDBCol md="6" class="mt-2">
-                          <MDBInput 
-                            size="sm" 
-                            type="text" 
-                            class="text-end"
-                            label="預算金額" 
-                            v-model:model-value="budgetAM"
-                            @update:model-value="dataFromCurrency('budget_am',$event)"/>
-                        </MDBCol>
-                        <MDBCol md="6" class="mt-2">
-                          <MDBInput 
-                            size="sm" 
-                            type="text" 
-                            class="text-end"
-                            label="擴充金額" 
-                            v-model:model-value="additionAM"
-                            @update:model-value="dataFromCurrency('addition_am',$event)"/>
-                        </MDBCol>
-                        <MDBCol md="12" class="mt-2">
-                          <MDBInput 
-                            size="sm" 
-                            type="text" 
-                            class="text-end border-danger"
-                            label="決標金額" 
-                            v-model:model-value="awardPrice"
-                            @update:model-value="dataFromCurrency('award_price',$event)"/>
+                        <MDBCol col="9" class="h-100">
+                          <MDBRow class="h-100">
+                            <!-- 預估付款金額 -->
+                            <MDBCol col="6" class="px-0 mt-2">
+                              <MDBInput 
+                                label="規劃付款"
+                                size="sm"
+                                class="px-1 text-end"
+                                v-model="pitem.estimated"/>
+                            </MDBCol>
+                            <!-- 扣款 -->
+                            <MDBCol col="6" class="px-0 mt-2">
+                              <MDBInput 
+                                label="扣款"
+                                size="sm"
+                                class="px-1 text-end"
+                                v-model="pitem.estimated"/>
+                            </MDBCol>
+                            <!-- 日期 -->
+                            <MDBCol col="6" class="px-0 mt-2">
+                              <MDBInput 
+                                label="日期"
+                                size="sm"
+                                class="px-1 text-end"
+                                v-model="pitem.date"/>
+                            </MDBCol>
+                            <!-- 實際付款金額 -->
+                            <MDBCol col="6" class="px-0 mt-2">
+                              <MDBInput 
+                              label="實付金額"
+                                size="sm"
+                                class="px-1 text-end"
+                                v-model="pitem.actual"/>
+                            </MDBCol>
+                          </MDBRow>
                         </MDBCol>
                       </MDBRow>
+                    </MDBCol>
+                    <!-- 功能按鈕 -->
+                    <MDBCol col="2" class="p-0">
+                      <MDBContainer class="h-100">
+                        <MDBRow class="h-100 align-item-between">
+                          <!-- 上傳 -->
+                          <MDBCol col="6" class="px-0 d-flex">
+                            <MDBBtn 
+                              :disabled="!rGroup[2]" 
+                              size="sm" 
+                              color="secondary" 
+                              class="p-0 flex-fill"
+                              @click="uploadBtn('payUpload',sid)">
+                              <i class="fas fa-upload"></i>
+                            </MDBBtn>
+                          </MDBCol>
+                          <!-- 檢視 -->
+                          <MDBCol col="6" class="p-0 d-flex">
+                            <MDBBtn 
+                              :disabled="!pitem.filename || pitem.filename===''"
+                              size="sm" 
+                              color="secondary"
+                              class="p-0 flex-fill">
+                              <a target=_blank :href="publicPath + '01_Case/' + nowCaseData.case.id + '/pay/' + pitem.filename + '?t=' + new Date().getTime()">
+                                <i class="fas fa-search"></i>
+                              </a>
+                            </MDBBtn>
+                          </MDBCol>
+                          <MDBCol col="6" class="p-0"></MDBCol>
+                          <!-- 刪除 -->
+                          <MDBCol col="6" class="p-0 d-flex">
+                            <MDBPopconfirm
+                              modal
+                              class="btn-sm btn-secondary p-0 flex-fill text-danger"
+                              message="刪除後無法恢復，確定刪除嗎？" 
+                              cancelText="取消" 
+                              confirmText="確定" @confirm="removePayRecord($event,sid)">
+                              <i class="far fa-trash-alt"></i>
+                            </MDBPopconfirm>
+                          </MDBCol>
+                        </MDBRow>
+                      </MDBContainer>
                     </MDBCol>
                   </MDBRow>
                 </template>
@@ -1799,9 +1952,52 @@ onMounted(()=>{
                 v-model="activeItem" :item-id="nowCaseData.case.id + splitSign + 'schedule'" 
                 item-name="進度" label-bg-color="#dc4c64">
                 <template v-slot:itemText>
+                  <!-- 期程 -->
+                  <MDBRow class="py-2 border-bottom">
+                    <MDBCol md="6" class="">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseData.case.data.base.startdate" 
+                        format="YYYY-MM-DD" label="起始日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <MDBCol md="6" class="">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseData.case.data.base.enddate" 
+                        format="YYYY-MM-DD" label="結束日"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                    <MDBCol md="6" class="mt-2">
+                      <MDBDatepicker 
+                        size="sm" v-model="nowCaseData.case.data.base.guarantee" 
+                        format="YYYY-MM-DD" label="保固期限"
+                        :monthsFull = "monthsFull"
+                        :monthsShort = "monthsShort"
+                        :weekdaysFull = "weekdaysFull"
+                        :weekdaysShort = "weekdaysShort"
+                        :weekdaysNarrow = "weekdaysNarrow"
+                        confirmDateOnSelect
+                        removeCancelBtn
+                        removeOkBtn/>
+                    </MDBCol>
+                  </MDBRow>
+                  <!-- 進度列表 -->
                   <MDBRow class="align-items-stretch">
                     <div class="d-flex mt-2">
-                      <!-- 增加檔案 -->
+                      <!-- 增加進度紀錄 -->
                       <MDBBtn 
                         :class="['curser-pointer','up-btn']"
                         @click.stop="addSchedule($event)"
@@ -1810,24 +2006,24 @@ onMounted(()=>{
                     </div>
                     <!-- 進度列表 -->
                     <!-- 標題 -->
-                    <MDBCol col="11" class="mt-2 fs-7 border-bottom">
+                    <MDBCol col="10" class="mt-2 fs-7 border-bottom">
                       <MDBRow class="h-100 align-items-stretch">
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
                           <div>日期</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>預估進度</div>
+                          <div>預估%</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>實際進度</div>
+                          <div>實際%</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
                           <div>差異</div>
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
-                    <!-- 刪除 -->
-                    <MDBCol col="1" class="mt-2p-0">
+                    <!-- 功能按鈕 -->
+                    <MDBCol col="2" class="mt-2 p-0">
                     </MDBCol>
                   </MDBRow>
                   <!-- 列表 -->
@@ -1849,11 +2045,11 @@ onMounted(()=>{
                   <MDBRow v-for="(sitem, sid) in nowCaseData.case.data.schedule" 
                     class="align-items-stretch my-0">
                     <!-- 進度內容 -->
-                    <MDBCol col="11" class="fs-7">
+                    <MDBCol col="10" class="fs-7">
                       <MDBRow class="h-100 align-items-stretch">
                         <!-- 日期 -->
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div class="d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
+                          <div class="curser-pointer d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
                             <!-- 年 -->
                             <div class="w-50 h-100">
                               {{ getSchYear(sitem.date, sid) }}
@@ -1888,16 +2084,46 @@ onMounted(()=>{
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
-                    <!-- 刪除按鈕 -->
-                    <MDBCol col="1" class="p-0">
-                      <MDBPopconfirm
-                        modal
-                        class="btn-sm btn-secondary px-2 flex-fill text-danger"
-                        message="刪除後無法恢復，確定刪除嗎？" 
-                        cancelText="取消" 
-                        confirmText="確定" @confirm="removeSchedule($event,sid)">
-                        <i class="far fa-trash-alt"></i>
-                      </MDBPopconfirm>
+                    <!-- 功能按鈕 -->
+                    <MDBCol col="2" class="p-0">
+                      <MDBContainer>
+                        <MDBRow>
+                          <!-- 上傳 -->
+                          <MDBCol col="4" class="px-0 d-flex">
+                            <MDBBtn 
+                              :disabled="!rGroup[2]" 
+                              size="sm" 
+                              color="secondary" 
+                              class="p-0 flex-fill"
+                              @click="uploadBtn('schUpload',sid)">
+                              <i class="fas fa-upload"></i>
+                            </MDBBtn>
+                          </MDBCol>
+                          <!-- 檢視 -->
+                          <MDBCol col="4" class="p-0 d-flex">
+                            <MDBBtn 
+                              :disabled="!sitem.filename || sitem.filename===''"
+                              size="sm" 
+                              color="secondary"
+                              class="p-0 flex-fill">
+                              <a target=_blank :href="publicPath + '01_Case/' + nowCaseData.case.id + '/schedule/' + sitem.filename + '?t=' + new Date().getTime()">
+                                <i class="fas fa-search"></i>
+                              </a>
+                            </MDBBtn>
+                          </MDBCol>
+                          <!-- 刪除 -->
+                          <MDBCol col="4" class="p-0 d-flex">
+                            <MDBPopconfirm
+                              modal
+                              class="btn-sm btn-secondary p-0 flex-fill text-danger"
+                              message="刪除後無法恢復，確定刪除嗎？" 
+                              cancelText="取消" 
+                              confirmText="確定" @confirm="removeSchedule($event,sid)">
+                              <i class="far fa-trash-alt"></i>
+                            </MDBPopconfirm>
+                          </MDBCol>
+                        </MDBRow>
+                      </MDBContainer>
                     </MDBCol>
                   </MDBRow>
                 </template>
@@ -2255,5 +2481,4 @@ input.border-danger + label + div>div{
 .textarea-noresize{
   resize: none;
 }
-
 </style>
