@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, onMounted, watch } from "vue";
+  import { ref, onMounted, watch, computed } from "vue";
   import {
     MDBInput,
   } from 'mdb-vue-ui-kit';
@@ -10,18 +10,19 @@
     modelValue:[Number, String],
   });
   const emit = defineEmits(['update:modelValue']);
-  const showValue = ref('');
+  const showValue = computed({
+    get(){
+      // 轉成貨幣
+      return toCurrency(props.modelValue);
+    },
+    set(value){
+      // 轉回數字
+      value = value?value:0;
+      let res = parseInt(fromCurrency(value));
+      emit('update:modelValue',res);
+    }
+  });
 
-  function updateValue(event){
-    // console.log('event',event)
-    // 先反轉
-    let res = parseInt(fromCurrency(event));
-    // console.log('res',res)
-    // 再更新modelValue(非貨幣格式)
-    emit('update:modelValue',res);
-    // 回存showValue(貨幣格式)
-    showValue.value = toCurrency(res);
-  }
   // 轉成貨幣格式
   function toCurrency(num){
     // console.log('num',num)
@@ -42,10 +43,6 @@
     return n.replace(/[,]+/g, '');
   }
 
-  onMounted(()=>{
-    // console.log(props.modelValue)
-    showValue.value = toCurrency(props.modelValue);
-  })
 </script>
 <template>
   <MDBInput 
@@ -53,6 +50,6 @@
     type="text" 
     :class="props.modelClass"
     :label="props.label" 
-    :model-value="showValue"
-    @update:model-value="updateValue($event)"/>
+    v-model="showValue"
+    />
 </template>

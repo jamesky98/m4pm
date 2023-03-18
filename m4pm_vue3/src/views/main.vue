@@ -5,14 +5,14 @@ import AccordionItem from "../components/AccordionItem.vue"
 import CaseBar from "../components/CaseBar.vue"
 import uploadtool from "../components/uploadtool.vue"
 import curInput from "../components/curInput.vue"
-import path from "path-browserify";
+import path, { resolve } from "path-browserify";
 import {
   MDBCol, MDBRow, MDBContainer,
   MDBInput, MDBTextarea, MDBSelect, 
   MDBDatepicker, MDBSwitch, MDBCheckbox, 
   MDBBtn, MDBPopconfirm, MDBBtnClose,
   MDBAccordion, MDBAccordionItem,
-  MDBSpinner,
+  MDBSpinner, mdbHotkey,
   MDBAnimation, MDBTooltip,
   MDBAlert,
   MDBModal, MDBModalHeader, MDBModalTitle, MDBModalBody, MDBModalFooter,
@@ -98,6 +98,14 @@ getchecktoken().then(res=>{
   const tips06 = ref(false);
   const tips07 = ref(false);
   const tips08 = ref(false);
+
+  const vMdbHotkey = mdbHotkey;
+  const keymap = computed(()=>{
+    // console.log(mdbHotkey)
+    return {
+      "ctrl+s": saveCaseBtn,
+    }
+  });
 
   // 版型參數
   const rightToolWidth = ref(25); // 25rem
@@ -201,21 +209,22 @@ getchecktoken().then(res=>{
   const nowCaseData = reactive({case: JSON.parse(JSON.stringify(newCase))});
   const nowCaseOperator = ref(""); // 承辦人
   const nowCaseFinished = ref(false); // 是否結案
-
+  // 金額基本資料
   const purchaseAM = ref(""); // 採購金額
   const budgetAM = ref(""); // 預算金額
   const additionAM = ref(""); // 增購金額
   const awardPrice = ref(""); // 決標金額
-
+  // JSON格式檢查
   const jsonChecked = ref(null);
-
+  // 進度日期相關
   const scheduleDateTemp = ref(' ');
   const scheduleDateDOM = ref();
   const nowSchId = ref('');
-
+  // 付款日期相關
   const payDateTemp = ref(' ');
   const payDateDOM = ref();
   const nowPayId = ref('');
+
   // Case參數==============End
 
 //#endregion 參數==========End
@@ -744,6 +753,7 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
+    console.log('saveCaseBtn')
     // 處理空日期
     nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?(nowCaseData.case.data.base.startdate):' '; 
     nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?(nowCaseData.case.data.base.enddate):' ';
@@ -756,6 +766,7 @@ getchecktoken().then(res=>{
     // 處理schedule資料依日期排序
     new Promise((res,rej)=>{
       let mySchedule = toRaw(nowCaseData.case.data.schedule);
+      console.log('mySchedule',mySchedule)
       mySchedule.sort((a,b)=>{
         let aDateNum = new Date(a.date).getTime();
         let bDateNum = new Date(b.date).getTime();
@@ -795,6 +806,8 @@ getchecktoken().then(res=>{
           list:[],
         }
       }
+    }).then(res=>{
+      infomsg.value = "案件：" + nowCaseData.case.code + " (編號：" + nowCaseData.case.id + "） 儲存完畢!!"
     })
   }
   // 更新總案件列表
@@ -900,6 +913,7 @@ getchecktoken().then(res=>{
       // console.log(myData);
       // console.log('allCases',allCases.value);
   }
+  // ======================================
   // 依照使用者設定排序
   function sortCaseByUser(orgArray, setting){
     // console.log('before',orgArray)
@@ -945,6 +959,115 @@ getchecktoken().then(res=>{
     // console.log('sort-result',result)
     return result
   }
+  // item移動
+  function itemMove(e,delta){
+    console.log('itemMove')
+    // console.log(e)
+    let itemData = e.split(splitSign.value);
+    let caseId = itemData[0];
+    let itemOder = itemData[2];
+    let itemArrey = nowCaseData.case.data.items
+    let caseOder = allCases.value.findIndex(x=>parseInt(x.id)===parseInt(caseId));
+    let caseArray = allCases.value[caseOder].data.items;
+    let beforActiveItem = activeItem.value;
+    // console.log(itemOder+delta)
+    // 未達頂
+    if((parseInt(itemOder)+parseInt(delta))>-1 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
+      new Promise((resolve,rej)=>{
+        let newArray = moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+delta);
+        // console.log('now-Caseitem:',newArray)
+        resolve(newArray)
+      }).then(res=>{
+        // 同步時間軸上的items
+        // let newArray = moveArray(caseArray,parseInt(itemOder),parseInt(itemOder)+delta);
+        allCases.value[caseOder].data.items = res;
+        // console.log('all-Caseitem:',res)
+        return res
+      }).then(res=>{
+        // 更新時間軸
+        dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
+        // console.log('targetItem',e,'nowItem',beforActiveItem)
+        if(beforActiveItem!==''){
+          if(e===beforActiveItem){
+            // 目前item與觸發item相同
+            // console.log('same')
+            activeItem.value = itemData[0] +  splitSign.value + itemData[1] +  splitSign.value + (parseInt(itemOder)+delta);
+          }else{
+            // 目前item與觸發item不同
+            // console.log('diffrent')
+          }
+        }
+        // console.log('activeItem',activeItem.value)
+      }).then(res=>{
+        if(nowCaseData.case.id){
+          let mydom = document.getElementById(nowCaseData.case.id + splitSign.value +'casebox');
+          // console.log(mydom)
+          mydom.classList.add('case-selected');
+        }
+      })
+    }
+  }
+  // 紀錄使用者案件排序
+  const { mutate: saveUserSet, onDone: saveUserSetOnDone, onError: saveUserSetError } = useMutation(
+    UsersGQL.UPDATEUSER);
+
+  // 子案件移動
+  function moveSubCase(e, direct){
+    console.log({
+      e: e,
+      direct: direct,
+    })
+    // 尋找子案件及主案件
+    let main_case_id = e.parent_id;
+    let main_case_ord = allCases.value.findIndex(x=>parseInt(x.id)===parseInt(main_case_id));
+    // 找到主案件 取出子案件Array 並toRaw
+    let main_case = allCases.value[main_case_ord];
+    let sub_cases = main_case.other_m4case;
+    new Promise((res,rej)=>{
+      // 子案件陣列解包
+      res(toRaw(sub_cases))
+    }).then(res=>{
+      return new Promise((response,reject)=>{
+        let sub_case_id = e.id;
+        // console.log('sub_case_id',sub_case_id)
+        let fromOrder = sub_cases.findIndex(x=>parseInt(x.id)===parseInt(sub_case_id));
+        // console.log('fromOrder',fromOrder)
+        let toOrder = fromOrder + direct
+        // console.log('toOrder',toOrder)
+        // 判斷子案件是否已是頭尾，否則則按照移動方向上移或下移
+        if(toOrder <0 || toOrder>(sub_cases.length-1)){
+          // 子案件已是頭尾 丟出結束
+          // console.log('isFinish !!')
+          reject();
+        }else{
+          // console.log('move it !!!')
+          // 改變陣列排序
+          let newArray = moveArray(res,fromOrder,toOrder);
+          // 將排序後陣列寫回案件陣列
+          allCases.value[main_case_ord].other_m4case = newArray;
+          // console.log('allCases.value',allCases.value)
+          response(allCases.value);
+        }
+      })
+    }).then(res=>{
+      // 將順序紀錄進使用者參數設定
+      usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
+      // console.log('usersetting',usersetting.value)
+      return usersetting.value
+    }).then(res=>{
+      // 儲存使用者參數設定
+      return saveUserSet({
+        userId: myUserId.value,
+        setting: usersetting.value
+      });
+    }).then(res=>{
+      // 更新畫面
+      dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
+    }).catch(rej=>{
+      // 不移動
+    });
+  }
+  // ======================================
   // 新增案件(清空案件基本資料)
   function createNewCase(){
     let newCaseContent = JSON.parse(JSON.stringify(newCase));
@@ -1062,57 +1185,7 @@ getchecktoken().then(res=>{
     // console.log('array',array);
     return array
   }
-  // item移動
-  function itemMove(e,delta){
-    console.log('itemMove')
-    // console.log(e)
-    let itemData = e.split(splitSign.value);
-    let caseId = itemData[0];
-    let itemOder = itemData[2];
-    let itemArrey = nowCaseData.case.data.items
-    let caseOder = allCases.value.findIndex(x=>parseInt(x.id)===parseInt(caseId));
-    let caseArray = allCases.value[caseOder].data.items;
-    let beforActiveItem = activeItem.value;
-    // console.log(itemOder+delta)
-    // 未達頂
-    if((parseInt(itemOder)+parseInt(delta))>-1 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
-      new Promise((resolve,rej)=>{
-        let newArray = moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+delta);
-        // console.log('now-Caseitem:',newArray)
-        resolve(newArray)
-      }).then(res=>{
-        // 同步時間軸上的items
-        // let newArray = moveArray(caseArray,parseInt(itemOder),parseInt(itemOder)+delta);
-        allCases.value[caseOder].data.items = res;
-        // console.log('all-Caseitem:',res)
-        return res
-      }).then(res=>{
-        // 更新時間軸
-        dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
-        // console.log('targetItem',e,'nowItem',beforActiveItem)
-        if(beforActiveItem!==''){
-          if(e===beforActiveItem){
-            // 目前item與觸發item相同
-            // console.log('same')
-            activeItem.value = itemData[0] +  splitSign.value + itemData[1] +  splitSign.value + (parseInt(itemOder)+delta);
-          }else{
-            // 目前item與觸發item不同
-            // console.log('diffrent')
-          }
-        }
-        // console.log('activeItem',activeItem.value)
-      }).then(res=>{
-        if(nowCaseData.case.id){
-          let mydom = document.getElementById(nowCaseData.case.id + splitSign.value +'casebox');
-          // console.log(mydom)
-          mydom.classList.add('case-selected');
-        }
-      })
-    }
-  }
-  // 紀錄使用者案件排序
-  const { mutate: saveUserSet, onDone: saveUserSetOnDone, onError: saveUserSetError } = useMutation(
-    UsersGQL.UPDATEUSER);
+  
 
   // item增加上傳檔案
   function addUploadFile(e,caseItem){
@@ -1209,16 +1282,24 @@ getchecktoken().then(res=>{
   function removePayRecord(e,sid){
     nowCaseData.case.data.pay.splice(sid,1);
   }
-  // 開啟進度日期選擇器
+  // 開啟付款日期選擇器
   function openPayDatePicker(e,sid){
     nowPayId.value = sid;
     payDateDOM.value.open();
   }
-  // 更新進度日期欄
+  // 更新付款日期欄
   function updatePayDate(e){
     nowCaseData.case.data.pay[parseInt(nowPayId.value)].date = payDateTemp.value;
   }
-
+  // 取得付款民國日期
+  function getPayMD(dateStr){
+    let mydateObj = new Date(dateStr);
+    if(!isNaN(mydateObj.getTime()) && mydateObj.getTime()!==0){
+      return (mydateObj.getFullYear()-1911) + '/' + (mydateObj.getMonth()+1) + '/' + mydateObj.getDate() + ' '
+    }else{
+      return ''
+    }
+  }
 
   // ===========================
 
@@ -1255,6 +1336,7 @@ getchecktoken().then(res=>{
   function caseBoxDragover(e){3
     e.preventDefault();
   }
+  // 案件放置
   function caseBoxDrop(e){
     // console.log('drop');
     if($(e.currentTarget).hasClass('casebox')){
@@ -1269,23 +1351,29 @@ getchecktoken().then(res=>{
       new Promise((resolve,rej)=>{
         resolve(toRaw(allCases.value))
       }).then(res=>{
+        // 取得移動起訖點
         let fromOrder = res.findIndex(x=>parseInt(x.id)===parseInt(fromId));
         let toOrder = res.findIndex(x=>parseInt(x.id)===parseInt(toId));
+        // 改變陣列排序
         let newArray = moveArray(res,fromOrder,toOrder);
         // console.log('newArray',newArray)
+        // 將排序後陣列寫回案件陣列
         allCases.value = newArray;
         // console.log(allCases.value)
         return newArray
       }).then(res=>{
+        // 將順序紀錄進使用者參數設定
         usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
         console.log('usersetting',usersetting.value)
         return usersetting.value
       }).then(res=>{
+        // 儲存使用者參數設定
         return saveUserSet({
           userId: myUserId.value,
           setting: usersetting.value
         });
       }).then(res=>{
+        // 更新畫面
         dragkey.value=(dragkey.value+1>10)?0:dragkey.value+1;
       });
       
@@ -1432,8 +1520,9 @@ onMounted(()=>{
 <template>
   <!-- 檔案上傳用 -->
   <input type="file" id="AllUpload" @change="uploadChenge($event)" style="display: none" />
+  
   <!-- 主體 -->
-  <MDBContainer fluid class="h-100">
+  <MDBContainer fluid class="h-100" v-mdb-hotkey:window.prevent="keymap">
     <MDBRow class="h-100 flex-column flex-nowrap">
       <!-- 導覽列 -->
       <Navbar1 />
@@ -1599,6 +1688,7 @@ onMounted(()=>{
                   :get-now-case-btn="getNowCaseBtn"
                   :split-sign="splitSign"
                   :show-sub="x.subshow?true:false"
+                  :to-currency="toCurrency"
                   @showsubcase="x.subshow=$event"
                   >
                 </CaseBar>
@@ -1615,7 +1705,9 @@ onMounted(()=>{
                     :date2short-str="date2shortStr"
                     :get-now-case-btn="getNowCaseBtn"
                     :split-sign="splitSign"
-                    >
+                    :to-currency="toCurrency"
+                    @moveitemup="moveSubCase($event,-1)"
+                    @moveitemdown="moveSubCase($event,1)">
                   </CaseBar>
                 </div>
               </div>
@@ -1803,35 +1895,35 @@ onMounted(()=>{
                     </MDBCol>
                   </MDBRow>
                   <!-- 付款列表-標題 -->
-                  <MDBRow class="pb-2 align-items-stretch border-bottom">
-                    <div class="d-flex mt-2">
-                      <!-- 增加檔案 -->
-                      <MDBBtn 
-                        :class="['curser-pointer','up-btn']"
-                        @click.stop="addPayRecord($event)"
-                        ><i class="fas fa-plus"></i></MDBBtn>
-                      <div class="fs-7">增加紀錄</div>
-                    </div>
+                  <MDBRow class="mt-2 border-bottom">
                     <!-- 付款列表 -->
                     <!-- 標題 -->
-                    <MDBCol col="10" class="mt-2 fs-7">
-                      <MDBRow class="h-100 align-items-stretch">
+                    <MDBCol col="10" class="fs-7">
+                      <MDBRow class="h-100">
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>階段</div>
+                          <div class="user-select-none">階段</div>
                         </MDBCol>
                         <MDBCol col="9" class="d-flex justify-content-center align-items-center">
-                          <div>金額</div>
+                          <div class="user-select-none">金額</div>
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
                     <!-- 功能按鈕 -->
-                    <MDBCol col="2" class="mt-2 p-0">
+                    <MDBCol col="2" class="d-flex justify-content-center align-items-center">
+                      <div class="">
+                        <!-- 增加階段 -->
+                        <MDBBtn 
+                          :class="['curser-pointer','up-btn']"
+                          @click.stop="addPayRecord($event)"
+                          ><i class="fas fa-plus"></i></MDBBtn>
+                        <!-- <div class="fs-7">增加紀錄</div> -->
+                      </div>
                     </MDBCol>
                   </MDBRow>
                   <!-- 列表 -->
                   <MDBDatepicker v-show="false"
                     id="payDatePicker"
-                    size="sm" v-model="scheduleDateTemp" 
+                    size="sm" v-model="payDateTemp" 
                     ref="payDateDOM"
                     format="YYYY-MM-DD"
                     class="px-1 py-0"
@@ -1845,7 +1937,7 @@ onMounted(()=>{
                     removeOkBtn
                     @update:model-value="updatePayDate(e)"/>
                   <MDBRow v-for="(pitem, sid) in nowCaseData.case.data.pay" 
-                    class="align-items-stretch pb-2 border-bottom">
+                    class="align-items-stretch">
                     <!-- 付款內容 -->
                     <MDBCol col="10" class="">
                       <MDBRow class="h-100 align-items-stretch">
@@ -1853,16 +1945,16 @@ onMounted(()=>{
                         <MDBCol col="3" class="h-100">
                           <MDBRow class="h-100">
                             <!-- 階段 -->
-                            <MDBCol col="12" class="h-50 d-flex justify-content-center align-items-center">
-                              <div class="fs-7">
+                            <MDBCol col="12" class="px-0 h-50 d-flex justify-content-center align-items-center">
+                              <div class="fs-7 user-select-none">
                                 {{ '第' + (sid+1) + '階段'}}
                               </div>
                             </MDBCol>
                             <!-- 付款比例 -->
-                            <MDBCol col="12" class="fs-7 h-50 d-flex justify-content-center align-items-center">
+                            <MDBCol col="12" class="px-2 fs-7 h-50 d-flex justify-content-center align-items-center">
                               <MDBInput 
                                 size="sm"
-                                class="text-end"
+                                class="px-1 text-end"
                                 v-model="pitem.ratio"/>%
                             </MDBCol>
                           </MDBRow>
@@ -1875,13 +1967,14 @@ onMounted(()=>{
                               <curInput
                                 size="sm"
                                 model-class="text-end"
-                                label="契約價金"
+                                label="契約階段價金"
                                 v-model:model-value.number="pitem.estimated"
                                 :key="nowCaseData.case.id"
                               />
                             </MDBCol>
                             <!-- 扣款 -->
-                            <MDBCol col="6" class="px-0 mt-2">
+                            <MDBCol col="6" class="d-flex px-0 mt-2">
+                              <div class="mx-1">-</div>
                               <curInput
                                 size="sm"
                                 model-class="text-end"
@@ -1891,12 +1984,18 @@ onMounted(()=>{
                               />
                             </MDBCol>
                             <!-- 日期 -->
-                            <MDBCol col="6" class="px-0 mt-2">
-                              <MDBInput 
-                                label="日期"
-                                size="sm"
-                                class="px-1 text-end"
-                                v-model="pitem.date"/>
+                            <MDBCol col="6" class="d-flex px-0 mt-2">
+                              <div class="curser-pointer d-flex w-100 h-100"
+                                @click="openPayDatePicker($event,sid)">
+                                <div v-if="pitem.date && pitem.date.trim()!==''" 
+                                  class="fs-7 w-100 h-100 text-primary text-center lh-lg">
+                                  {{ getPayMD(pitem.date) }}付
+                                </div>
+                                <div v-else class="w-100 h-100 btn btn-secondary btn-sm p-1">
+                                  付款日期
+                                </div>
+                              </div>
+                              <div class="mx-1">=</div>
                             </MDBCol>
                             <!-- 實際付款金額 -->
                             <MDBCol col="6" class="px-0 mt-2">
@@ -1954,6 +2053,7 @@ onMounted(()=>{
                         </MDBRow>
                       </MDBContainer>
                     </MDBCol>
+                    <div class="mt-2 w-100 border-2 border-warning border-bottom"></div>
                   </MDBRow>
                 </template>
               </AccordionItem>
@@ -2004,39 +2104,39 @@ onMounted(()=>{
                         removeOkBtn/>
                     </MDBCol>
                   </MDBRow>
-                  <!-- 進度列表 -->
-                  <MDBRow class="align-items-stretch">
-                    <div class="d-flex mt-2">
-                      <!-- 增加進度紀錄 -->
-                      <MDBBtn 
-                        :class="['curser-pointer','up-btn']"
-                        @click.stop="addSchedule($event)"
-                        ><i class="fas fa-plus"></i></MDBBtn>
-                      <div class="fs-7">增加進度紀錄</div>
-                    </div>
+                  <!-- 進度標題 -->
+                  <MDBRow class="my-2 border-bottom">
                     <!-- 進度列表 -->
                     <!-- 標題 -->
-                    <MDBCol col="10" class="mt-2 fs-7 border-bottom">
+                    <MDBCol col="10" class="fs-7">
                       <MDBRow class="h-100 align-items-stretch">
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>日期</div>
+                          <div class="user-select-none">日期</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>預估%</div>
+                          <div class="user-select-none">預估%</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>實際%</div>
+                          <div class="user-select-none">實際%</div>
                         </MDBCol>
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div>差異</div>
+                          <div class="user-select-none">差異</div>
                         </MDBCol>
                       </MDBRow>
                     </MDBCol>
                     <!-- 功能按鈕 -->
-                    <MDBCol col="2" class="mt-2 p-0">
+                    <MDBCol col="2" class="d-flex justify-content-center align-items-center">
+                      <div class="">
+                        <!-- 增加進度紀錄 -->
+                        <MDBBtn 
+                          :class="['curser-pointer','up-btn']"
+                          @click.stop="addSchedule($event)"
+                          ><i class="fas fa-plus"></i></MDBBtn>
+                        <!-- <div class="fs-7">增加進度紀錄</div> -->
+                      </div>
                     </MDBCol>
                   </MDBRow>
-                  <!-- 列表 -->
+                  <!-- 進度列表 -->
                   <MDBDatepicker v-show="false"
                     id="scheduleDatePicker"
                     size="sm" v-model="scheduleDateTemp" 
@@ -2059,7 +2159,7 @@ onMounted(()=>{
                       <MDBRow class="h-100 align-items-stretch">
                         <!-- 日期 -->
                         <MDBCol col="3" class="d-flex justify-content-center align-items-center">
-                          <div class="curser-pointer d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
+                          <div v-if="getSchMD(sitem.date)" class="curser-pointer d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
                             <!-- 年 -->
                             <div class="w-50 h-100">
                               {{ getSchYear(sitem.date, sid) }}
@@ -2067,6 +2167,11 @@ onMounted(()=>{
                             <!-- 日期 -->
                             <div class="ms-1 w-50 h-100">
                               {{ getSchMD(sitem.date) }}
+                            </div>
+                          </div>
+                          <div v-else class="curser-pointer d-flex w-100 h-100" @click="openSchDatePicker($event,sid)">
+                            <div class="h-100 btn btn-secondary btn-sm p-1">
+                              選日期
                             </div>
                           </div>
                         </MDBCol>
@@ -2096,8 +2201,8 @@ onMounted(()=>{
                     </MDBCol>
                     <!-- 功能按鈕 -->
                     <MDBCol col="2" class="p-0">
-                      <MDBContainer>
-                        <MDBRow>
+                      <MDBContainer class="">
+                        <MDBRow class="align-items-center">
                           <!-- 上傳 -->
                           <MDBCol col="4" class="px-0 d-flex">
                             <MDBBtn 
@@ -2152,10 +2257,10 @@ onMounted(()=>{
                 >
                 <template v-slot:itemText>
                   <MDBRow>
-                    <MDBCol md="12" class="mt-2">
+                    <MDBCol md="8" class="mt-2">
                       <MDBInput size="sm" type="text" label="項目名稱" v-model="item.name" />
                     </MDBCol>
-                    <MDBCol md="12" class="mt-2">
+                    <MDBCol md="4" class="mt-2">
                       <MDBInput size="sm" type="text" label="項目類型" v-model="item.type" />
                     </MDBCol>
                     <!-- 規劃日期 -->
@@ -2277,7 +2382,7 @@ onMounted(()=>{
 /* 選擇案件時顯示外框 */
 .case-selected .boxline{
   /* border: 5px solid blue; */
-  box-shadow: 0 0 5px 3px blue inset;
+  box-shadow: 0 0 6px 2px rgb(0, 132, 255) inset;
 }
 /* 基本資料頁收合時樣式 */
 .accordion-button[aria-controls="base"]{

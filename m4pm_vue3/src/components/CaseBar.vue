@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch , onMounted ,inject } from "vue";
 import {
-  MDBCol, MDBRow, MDBContainer
+  MDBCol, MDBRow, MDBContainer,
+  MDBBtn,
 } from 'mdb-vue-ui-kit';
 import { computed } from "@vue/reactivity";
 
@@ -16,20 +17,27 @@ const props = defineProps({
   itemsClick: {type: Function},
   date2shortStr: {type: Function},
   getNowCaseBtn: {type: Function},
+  toCurrency: {type: Function},
 });
-const emit = defineEmits(['showsubcase']);
+const emit = defineEmits(['showsubcase','moveitemup','moveitemdown']);
 const timebarToDayLeft = inject('timebarToDayLeft');
 const activeItem = inject('activeItem');
 const splitSign = inject('splitSign');
 const checkShow = ref(false);
-
+// 進度值
 const actPercent = ref(0);
 const estPercent = ref(0);
+// 付款相關
+const totalPay = ref(0);
+const actPayPercent = ref(0);
+const actPay = ref(0);
 
 watch(() => props.caseData,(newCaseData)=>{
   findSchedule(newCaseData);
+  computePay(newCaseData);
 })
 
+// 找尋目前進度
 function findSchedule(newCaseData){
   let schedule = newCaseData.data.schedule;
   let nowDate = new Date()
@@ -56,23 +64,56 @@ function findSchedule(newCaseData){
   }
   // 搜尋完畢，填入進度值
   if(scheduleId>-1){
-    actPercent.value = (maxAct)?parseFloat(maxAct).toFixed(2):0;
-    estPercent.value = (schedule[scheduleId].estimated)?parseFloat(schedule[scheduleId].estimated).toFixed(2):0;
+    actPercent.value = (maxAct)?parseFloat(maxAct).toFixed(1):0;
+    estPercent.value = (schedule[scheduleId].estimated)?parseFloat(schedule[scheduleId].estimated).toFixed(1):0;
   }else{
     actPercent.value = 0;
     estPercent.value = 0;
   }
 }
+// 計算目前付款
+function computePay(newCaseData){
+  let pays = newCaseData.data.pay;
+  let changes = newCaseData.data.changes;
+  let total_price = (newCaseData.data.base.award_price)?parseInt(newCaseData.data.base.award_price):0;
+  let sumPay = 0;
+
+  if(pays){
+    // console.log('pays',pays);
+    // 計算最終總價金 查看是否有契變
+    if(changes && changes.length>0){
+      for(let i=0;i<changes.length;i++){
+        total_price=total_price + parseInt(changes[i].diff_price);
+      }
+    }
+    // 查看有付款日期才算付款 加總所有日期的付款
+    for(let j=0;j<pays.length;j++){
+      if(pays[j].date && pays[j].date.trim()!==''){
+        sumPay = sumPay + parseInt(pays[j].actual);
+      }
+    }
+  }
+  totalPay.value = props.toCurrency(total_price);
+  actPay.value =  props.toCurrency(sumPay);
+  actPayPercent.value = (sumPay===0 || total_price===0)?0:(sumPay / total_price * 100).toFixed(1);
+  // console.log('actPayPercent',actPayPercent.value)
+}
 
 function checkchange(e){
   let changeshow = checkShow.value
-
   emit('showsubcase', changeshow)
 }
-
+function moveSubCaseEvent(direct){
+  if(direct<0){
+    emit('moveitemup',props.caseData)
+  }else{
+    emit('moveitemdown',props.caseData)
+  }
+}
 onMounted(()=>{
   checkShow.value = props.showSub;
   findSchedule(props.caseData);
+  computePay(props.caseData);
 })
 
 </script>
@@ -94,27 +135,55 @@ onMounted(()=>{
       }" 
       class="h-100 border-end pos-relative"
       >
-      <div class="d-flex mt-1">
-        <div class="bg-mmintgreen rounded-start px-1">案件</div>
-        <div class="border rounded-end border-mmintgreen px-1">{{ props.caseData.code }}</div>
+      <!-- 案件簡稱 -->
+      <div class="d-flex mt-1 w-100">
+        <div :class="['w-100 rounded px-1 text-white bg-gradient user-select-all', props.isSubCase?'bg-secondary':'bg-primary']">{{ props.caseData.code }}</div>
+        <!-- <div class="case-label-content bg-primary-light border rounded-end border-primary px-1">{{ props.caseData.code }}</div> -->
       </div>
+      <!-- 廠商資料 -->
       <div class="d-flex mt-1">
-        <div class="bg-mpink rounded-start px-1 fs-7">廠商</div>
-        <div class="border rounded-end border-mpink px-1 fs-7">{{ props.caseData.data.base.weinningtenderer }}</div>
+        <div class="case-label-title bg-danger rounded-start px-1 fs-7 text-white bg-gradient">廠商</div>
+        <div class="case-label-content bg-danger-light border rounded-end border-danger px-1 fs-7 user-select-all">{{ props.caseData.data.base.weinningtenderer }}</div>
       </div>
+      <!-- 承辦資料 -->
       <div class="d-flex mt-1">
-        <div class="bg-mblue rounded-start px-1 fs-7">承辦</div>
-        <div class="border rounded-end border-mblue px-1 fs-7">{{ props.caseData.data.base.operator }}</div>
+        <div class="case-label-title bg-warning rounded-start px-1 fs-7 text-white bg-gradient">承辦</div>
+        <div class="case-label-content bg-warning-light border rounded-end border-warning px-1 fs-7 user-select-all">{{ props.caseData.data.base.operator }}</div>
+      </div>
+      <!-- 進度資料 -->
+      <div class="d-flex mt-1">
+        <div class="case-label-title bg-info rounded-start px-1 fs-7 text-white bg-gradient">進度</div>
+        <div class="case-label-content bg-info-light border rounded-end border-info px-1 fs-7 user-select-all">
+          <span class="">
+            預定 {{actPercent}}% </span><br>
+          <span class="">
+            實際 {{estPercent}}% </span>
+          <span :class="['schedule-diff',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
+            {{ (parseFloat(actPercent) - parseFloat(estPercent))>=0?'+':'' }}{{ (parseFloat(actPercent) - parseFloat(estPercent)).toFixed(1) }}%
+          </span>  
+        </div>
       </div>
       
       <!-- 展開符號 -->
       <label v-show="!props.isSubCase && props.caseData.other_m4case.length>0"
-        style="right: 0.5rem; top:0.25rem"
+        style="right: 0.3rem; top:0.25rem"
         :class="['pos-absolute','curser-pointer']"
         @change="checkchange($event)">
         <input type="checkbox" class="sr-only" v-model="checkShow"/>
         <i :class="['fas fa-chevron-down',checkShow && 'item-open','transtition-all']"></i>
       </label>
+      <!-- 上移 -->
+      <MDBBtn v-if="props.isSubCase"
+        style="right: 0.15rem; top:1.75rem"
+        :class="['pos-absolute','curser-pointer','move-btn']"
+        @click.stop="moveSubCaseEvent(-1)"
+        ><i class="fas fa-long-arrow-alt-up"></i></MDBBtn>
+      <!-- 下移 -->
+      <MDBBtn v-if="props.isSubCase"
+        style="right: 0.15rem; top:3.5rem"
+        :class="['pos-absolute','curser-pointer','move-btn']"
+        @click.stop="moveSubCaseEvent(1)"
+        ><i class="fas fa-long-arrow-alt-down"></i></MDBBtn>
     </div>
     <!-- 右方時間列表 -->
     <div 
@@ -157,10 +226,10 @@ onMounted(()=>{
           </div>
         </div>
       </div>
-      <MDBContainer>
+      <MDBContainer class="border-top">
         <MDBRow>
         <!-- 執行進度 -->
-        <MDBCol col="6" style="position:relative; height: 3rem;" class="">
+        <MDBCol col="6" style="position:relative; height: 2rem;" class="">
           <!-- 總長 -->
           <div class="back-bar"></div>
           <!-- 預計進度 -->
@@ -168,21 +237,50 @@ onMounted(()=>{
           <!-- 實際進度 -->
           <div :style="'width: calc('+ actPercent + '% - 1rem);'" class="act-bar"></div>
           <!-- 數字 -->
-          <div style="position:absolute; bottom:1.1rem;right: 10%;">
+          <div style="position:absolute; bottom:0.4rem;right: 10%;">
             <span class="schedule-text">
-              進度 {{actPercent}}% 
-              <span class="schedule-est">
-                / {{estPercent}}% 
-              </span>
-              <span :class="['schedule-diff',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
-                {{ (parseFloat(actPercent) - parseFloat(estPercent))>=0?'+':'' }}{{ (parseFloat(actPercent) - parseFloat(estPercent)).toFixed(2) }}%
-              </span>
+              <span :class="['schedule-title-text',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
+                {{actPercent}}% </span>
+              <span><i style="transform:rotate(85deg)" class="fas fa-slash"></i></span>
+              <span class="schedule-title-text">
+                {{estPercent}}% </span>
+              <!-- <span :class="['schedule-diff',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
+                {{ (parseFloat(actPercent) - parseFloat(estPercent))>=0?'+':'' }}{{ (parseFloat(actPercent) - parseFloat(estPercent)).toFixed(1) }}%
+              </span> -->
             </span>
+          </div>
+          <div 
+            style="position:absolute; bottom:0.6rem;left: 1rem;"
+            class="fs-7 schedule-title-text">
+            進度
           </div>
         </MDBCol>
         <!-- 經費使用 -->
-        <MDBCol col="6" class="border">
-          經費
+        <MDBCol col="6" style="position:relative; height: 2rem;" class="">
+          <!-- 總長 -->
+          <div class="back-bar"></div>
+          <!-- 實際進度 -->
+          <div :style="'width: calc('+ actPayPercent + '% - 1rem);'" class="act-pay-bar"></div>
+          <!-- 數字 -->
+          <div style="position:absolute; bottom:0.4rem;right: 10%;">
+            <span class="schedule-text">
+              <span class="schedule-est">
+                {{actPay}}</span>
+              <span class="pay-percent">
+                ({{ actPayPercent }}%)</span>
+              <span><i style="transform:rotate(85deg)" class="fas fa-slash"></i></span>
+              <span class="schedule-title-text">
+                {{totalPay}}</span>
+              <!-- <span :class="['schedule-diff',(parseFloat(actPercent) - parseFloat(estPercent))>=0?'text-success':'text-danger']">
+                {{ (parseFloat(actPercent) - parseFloat(estPercent))>=0?'+':'' }}{{ (parseFloat(actPercent) - parseFloat(estPercent)).toFixed(1) }}%
+              </span> -->
+            </span>
+          </div>
+          <div 
+            style="position:absolute; bottom:0.6rem;left: 1rem;"
+            class="fs-7 schedule-title-text">
+            付款
+          </div>
         </MDBCol>
       </MDBRow>
       </MDBContainer>
@@ -193,26 +291,35 @@ onMounted(()=>{
   
 </template>
 <style scoped>
-.act-bar {
+.act-pay-bar {
   position:absolute;
-  width: calc(100% - 1rem);
-  height: 0.5rem;
+  height: 0.6rem;
   left: 0;
   bottom: 0.75rem;
   background: 
-    linear-gradient(135deg, transparent 0.75rem, hsl(60, 100%, 60%) 0, hsl(60, 100%, 40%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
+    linear-gradient(135deg, transparent 0.424rem, hsl(120, 80%, 40%) 0, hsl(120, 80%, 80%) calc(100% - 0.424rem),transparent calc(100% - 0.424rem)) top left;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  /* filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%)); */
+}
+.act-bar {
+  position:absolute;
+  height: 0.6rem;
+  left: 0;
+  bottom: 0.75rem;
+  background: 
+    linear-gradient(135deg, transparent 0.424rem, hsl(60, 100%, 60%) 0, hsl(60, 100%, 40%) calc(100% - 0.424rem),transparent calc(100% - 0.424rem)) top left;
   background-size: 100% 100%;
   background-repeat: no-repeat;
   /* filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%)); */
 }
 .est-bar {
   position:absolute;
-  width: calc(100% - 1rem);
-  height: 0.5rem;
+  height: 0.6rem;
   left: 0;
   bottom: 0.75rem;
   background: 
-    linear-gradient(135deg, transparent 0.75rem, hsl(205, 100%, 40%) 0, hsl(205, 100%, 80%) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
+    linear-gradient(135deg, transparent 0.424rem, hwb(205 40% 20%) 0, hsl(205, 100%, 80%) calc(100% - 0.424rem),transparent calc(100% - 0.424rem)) top left;
   background-size: 100% 100%;
   background-repeat: no-repeat;
   filter: drop-shadow(0.25rem 0.25rem 0.2rem hsl(0, 0%, 60%));
@@ -224,21 +331,61 @@ onMounted(()=>{
   left: 0;
   bottom: 0.5rem;
   background: 
-    linear-gradient(135deg, transparent 0.75rem, rgba(0, 0, 0, 0.1) 0, rgba(0, 0, 0, 0.4) calc(100% - 0.75rem),transparent calc(100% - 0.75rem)) top left;
+    linear-gradient(135deg, transparent 0.424rem, rgba(0, 0, 0, 0.1) 0, rgba(0, 0, 0, 0.4) calc(100% - 0.424rem),transparent calc(100% - 0.424rem)) top left;
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
+.schedule-title-text{
+  color: rgb(0, 0, 0); 
+  text-shadow: white 0 0 0.3rem,white 0 0 0.3rem,white 0 0 0.3rem;
+}
 .schedule-text{
   font-size: 13px;
-  color: yellow; 
-  text-shadow: black 0 0 0.2rem,black 0 0 0.2rem,black 0 0 0.2rem;
+}
+.schedule-act{
+  color: rgb(0, 0, 0); 
+  text-shadow: rgb(255, 255, 0) 0 0 0.1rem,rgb(151, 151, 2) 0 0 0.1rem;
 }
 .schedule-est{
-  color: blue; 
-  text-shadow: black 0 0 0.2rem;
+  color: rgb(0, 0, 0); 
+  text-shadow: rgb(0, 255, 255) 0 0 0.1rem;
 }
 .schedule-diff{
   font-size: 13px;
   text-shadow: none;
+}
+.pay-percent{
+  color: rgb(55, 0, 0); 
+  text-shadow: 
+    rgb(55, 0, 0) 0.5px 0 0rem,
+    rgb(55, 0, 0) -0.5px 0 0rem,
+    rgb(55, 0, 0) 0 -0.5px 0rem,
+    rgb(55, 0, 0) 0 0.5px 0rem;
+}
+.case-label-title{
+  width: 2.5rem;
+}
+.case-label-content{
+  width: calc(100% - 2.5rem);
+}
+.bg-primary-light{
+  background-color: hwb(217 90% 0%);
+}
+.bg-danger-light{
+  background-color: hwb(350 90% 0%);
+}
+.bg-warning-light{
+  background-color: hwb(40 90% 0%);
+}
+.bg-info-light{
+  background-color: hwb(195 90% 0%);
+}
+.move-btn{
+  width: 1rem;
+  height: 1.5rem;
+  line-height: 1.2rem;
+  padding: 0.15rem;
+  color: white;
+  background-color: #28c213;
 }
 </style>
