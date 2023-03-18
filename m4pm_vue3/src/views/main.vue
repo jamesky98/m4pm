@@ -753,7 +753,7 @@ getchecktoken().then(res=>{
   saveCaseonError(e=>{errorHandle(e,infomsg,alert1)});
   // 儲存案件按鈕事件
   function saveCaseBtn(){
-    console.log('saveCaseBtn')
+    // console.log('saveCaseBtn')
     // 處理空日期
     nowCaseData.case.data.base.startdate = (nowCaseData.case.data.base.startdate)?(nowCaseData.case.data.base.startdate):' '; 
     nowCaseData.case.data.base.enddate = (nowCaseData.case.data.base.enddate)?(nowCaseData.case.data.base.enddate):' ';
@@ -766,7 +766,7 @@ getchecktoken().then(res=>{
     // 處理schedule資料依日期排序
     new Promise((res,rej)=>{
       let mySchedule = toRaw(nowCaseData.case.data.schedule);
-      console.log('mySchedule',mySchedule)
+      // console.log('mySchedule',mySchedule)
       mySchedule.sort((a,b)=>{
         let aDateNum = new Date(a.date).getTime();
         let bDateNum = new Date(b.date).getTime();
