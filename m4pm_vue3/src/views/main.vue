@@ -822,7 +822,7 @@ getchecktoken().then(res=>{
         }else{
           result = inputArray;
         }
-        console.log('result',result)
+        // console.log('result',result)
         return result
       }).then(res=>{
         for(let i=0;i<allCases.value.length; i++){
@@ -1502,16 +1502,24 @@ function checkEvent(src){
   console.log(src)
 }
 
+let updateTimerId;
 onMounted(()=>{
   // 視窗調整大小事件
   window.addEventListener('resize',updateTBar);
 
   // 游標移動事件==>時間軸游標變化
   document.onmousemove = movetimepointer;
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault()
+    }
+  })
   refgetNowUser().then(res=>{
     // 設定初始時間軸起始點
     initFirstDate();
-    updateAllCase();
+    updateAllCase().then(res=>{
+      updateTimerId = window.setInterval(updateAllCase,5000);
+    });
   });
   
 });
@@ -1522,7 +1530,7 @@ onMounted(()=>{
   <input type="file" id="AllUpload" @change="uploadChenge($event)" style="display: none" />
   
   <!-- 主體 -->
-  <MDBContainer fluid class="h-100" v-mdb-hotkey:window.prevent="keymap">
+  <MDBContainer fluid class="h-100" v-mdb-hotkey:document="keymap">
     <MDBRow class="h-100 flex-column flex-nowrap">
       <!-- 導覽列 -->
       <Navbar1 />
