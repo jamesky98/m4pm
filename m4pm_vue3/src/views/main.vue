@@ -832,6 +832,22 @@ getchecktoken().then(res=>{
         }else{
           result = inputArray;
         }
+        // 依照使用者設定寫入顯示設定
+        if(usersetting.value.boxStatus){
+          for(let i=0;i<result.length;i++){
+            let bs = usersetting.value.boxStatus;
+            let bsOrder = bs.findIndex(x=>parseInt(x.id)===parseInt(result[i].id));
+            if(bsOrder>-1){
+              if(bs[bsOrder].subshow){
+                result[i].subshow = bs[bsOrder].subshow;
+              }
+              if(bs[bsOrder].minibox){
+                result[i].minibox = bs[bsOrder].minibox;
+              }
+            }
+          }
+        }
+
         // console.log('result',result)
         return result
       }).then(res=>{
@@ -1185,7 +1201,7 @@ getchecktoken().then(res=>{
       //   idInfo:idInfo,
       //   itemId:itemId,
       //   itemOder:itemOder,
-      //   item:item,
+      //   item:item,item-open
       // });
       if(item){
         if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
@@ -1406,7 +1422,7 @@ getchecktoken().then(res=>{
       }).then(res=>{
         // 將順序紀錄進使用者參數設定
         usersetting.value ={ ...usersetting.value ,casesort:recordCaseSort(res)};
-        console.log('usersetting',usersetting.value)
+        // console.log('usersetting',usersetting.value)
         return usersetting.value
       }).then(res=>{
         // 儲存使用者參數設定
@@ -1422,7 +1438,49 @@ getchecktoken().then(res=>{
     }
   }
 
+  // 紀錄開合狀態
+  function saveBoxStatus(x,key,value){
+    x[key]=value;
+    // console.log('x',x);
+    // console.log('allCases',allCases.value); 
+    // console.log('usersetting',usersetting.value); 
+    // 將順序紀錄進使用者參數設定
+    // newobj = {boxStatus:[
+    //   {
+    //     id: x.id,
+    //     subshow: true / false,
+    //     minibox: true / false,
+    //   }
+    // ]}
+    if(usersetting.value.boxStatus){
+      let boxStatus = usersetting.value.boxStatus;
+      // 尋找紀錄並增加
+      let recOrder = boxStatus.findIndex(d=>parseInt(d.id)===parseInt(x.id));
+      console.log('recOrder',recOrder)
+      if(recOrder>-1){
+        // 有舊資料
+        boxStatus[recOrder][key]=value;
+      }else{
+        // 無舊資料
+        boxStatus.push({
+          'id':x.id
+        })
+        boxStatus[boxStatus.length-1][key]=value;
+      }
+      usersetting.value=boxStatus
+    }else{
+      // 從未設定過直接增加
+      usersetting.value.boxStatus=[];
+      usersetting.value.boxStatus.push({id:x.id});
+      usersetting.value.boxStatus[0][key]=value;
+    }
 
+    // 儲存使用者設定
+    saveUserSet({
+      userId: myUserId.value,
+      setting: usersetting.value
+    });
+  }
 //#endregion 拖曳操作==========End
 
 //#region 檔案上傳==========Start
@@ -1753,7 +1811,8 @@ onMounted(()=>{
                   :split-sign="splitSign"
                   :show-sub="x.subshow?true:false"
                   :to-currency="toCurrency"
-                  @showsubcase="x.subshow=$event"
+                  @showsubcase="saveBoxStatus(x,'subshow',$event)"
+                  @minichange="saveBoxStatus(x,'minibox',$event)"
                   >
                 </CaseBar>
                 <!-- 子案件 -->
@@ -2373,7 +2432,6 @@ onMounted(()=>{
                             @click.stop="addUploadFile($event,item)"
                             ><i class="fas fa-plus"></i></MDBBtn>
                           <div class="fs-7">上傳資料</div>
-                          
                         </div>
                         <!-- 上傳檔案===Start -->
                         <MDBCol v-for="(upload, iup) in item.uploads" col="12" class="mt-2">
