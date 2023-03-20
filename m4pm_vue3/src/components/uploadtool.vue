@@ -30,6 +30,7 @@
   }
 
   function removeBtn(e){
+    // console.log('e',e,'uploadKey' ,props.uploadKey)
     props.removeUploadFile(e, props.uploadKey);
   }
   function updateValue(e){
@@ -75,6 +76,7 @@
     </MDBRow>
   </MDBCol>
   <MDBCol :col="(props.labelId==='baseTable')?'4':'5'" class="d-flex ps-0">
+      <!-- 上傳 -->
       <MDBBtn 
         :disabled="!props.rGroup" 
         size="sm" 

@@ -13,6 +13,7 @@ const props = defineProps({
   labelTextColor: {type: String, default: 'white'},
   isItems: {type: Boolean, default: false},
   itemId: {type: String},
+  nowItemOrder: {type:Number},
   modelValue: {type:String},
 });
 const emit = defineEmits(['update:modelValue','moveitemup','moveitemdown']);
@@ -20,16 +21,27 @@ const emit = defineEmits(['update:modelValue','moveitemup','moveitemdown']);
 const splitSign=inject('splitSign');
 
 watch(() => props.modelValue,(newVal)=>{
+  // console.log(props.modelValue, props.itemId  +'Acc watch activeItem')
   if(newVal===props.itemId){
     checked.value = true
   }else{
     checked.value = false
   }
-})
+});
+
+watch(() => props.nowItemOrder,(newVal)=>{
+  // console.log('nowItemOrder watch',newVal);
+  if(props.modelValue===props.itemId){
+    checked.value = true
+  }else{
+    checked.value = false
+  }
+});
+
 // console.log('modelValue',props.modelValue);
 // console.log('itemId',props.itemId);
 function checkchange(e){
-  console.log('itemId',props.itemId);
+  // console.log('itemId',props.itemId);
   emit('update:modelValue', (checked.value)?props.itemId:'')
 }
 

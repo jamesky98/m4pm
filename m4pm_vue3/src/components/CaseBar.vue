@@ -212,9 +212,11 @@ onMounted(()=>{
             props.caseData.guarSize.width + 'px;'" 
           :class="'border-top border-bottom'"></div>
         <!-- Items -->
-        <div v-for="(item, idx) in props.caseData.data.items" :key="idx" v-show="item.position.left>=0"
-          :style="'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + 
-            item.position.left + 'px;'">
+        <div v-for="(item, idx) in props.caseData.data.items" 
+          :key="idx" 
+          v-show="item.position && item.position.left>=0"
+          :style="item.position?'position: absolute;top:calc((100% / 2) - 0.5rem);left:' + 
+            item.position.left + 'px;':0">
           <div 
             v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
             :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===props.caseData.id + splitSign +item.name + splitSign + item.id) && 'item-mark-selected']"

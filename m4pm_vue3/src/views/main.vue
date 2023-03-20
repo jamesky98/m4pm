@@ -86,6 +86,16 @@ getchecktoken().then(res=>{
   provide('activeItem',activeItem);
   const splitSign = ref('#');
   provide('splitSign',splitSign);
+  const nowItemOrder = computed(()=>{
+    let items = nowCaseData.case.data.items;
+    let itemkeys = activeItem.value.split(splitSign.value);
+    if(itemkeys.length===3){
+      let itemOrder = items.findIndex(x=>parseInt(x.id)===parseInt(itemkeys[2]))
+      return itemOrder
+    }
+    return null
+  })
+
   const dragkey = ref(0);
   const showJson = ref(false);
   const jsonChErr = ref('');
@@ -858,7 +868,7 @@ getchecktoken().then(res=>{
       // allCases.value = myData;
       if(myData.length < 1){
         // 無案件時
-        allCases.value.push(nowCaseData.value)
+        myData.push(newCase.value)
       }else{
         // 計算各案件時間軸
         for(let i=0;i<myData.length;i++){
@@ -961,25 +971,30 @@ getchecktoken().then(res=>{
   }
   // item移動
   function itemMove(e,delta){
-    console.log('itemMove')
-    // console.log(e)
+    // console.log('itemMove')
     let itemData = e.split(splitSign.value);
     let caseId = itemData[0];
-    let itemOder = itemData[2];
+    let itemId = itemData[2];
     let itemArrey = nowCaseData.case.data.items
+    let itemOrder = itemArrey.findIndex(x=>parseInt(x.id)===parseInt(itemId));
     let caseOder = allCases.value.findIndex(x=>parseInt(x.id)===parseInt(caseId));
-    let caseArray = allCases.value[caseOder].data.items;
     let beforActiveItem = activeItem.value;
-    // console.log(itemOder+delta)
+    // console.log({
+    //   e:e,
+    //   delta:delta,
+    //   itemData:itemData,
+    //   caseId:caseId,
+    //   itemId:itemId,
+    // })
     // 未達頂
-    if((parseInt(itemOder)+parseInt(delta))>-1 && (parseInt(itemOder)+parseInt(delta))< itemArrey.length){
+    if((parseInt(itemOrder)+parseInt(delta))>-1 && (parseInt(itemOrder)+parseInt(delta))< itemArrey.length){
       new Promise((resolve,rej)=>{
-        let newArray = moveArray(itemArrey,parseInt(itemOder),parseInt(itemOder)+delta);
+        let newArray = moveArray(itemArrey,parseInt(itemOrder),parseInt(itemOrder)+delta);
         // console.log('now-Caseitem:',newArray)
         resolve(newArray)
       }).then(res=>{
         // 同步時間軸上的items
-        // let newArray = moveArray(caseArray,parseInt(itemOder),parseInt(itemOder)+delta);
+        // let newArray = moveArray(caseArray,parseInt(itemId),parseInt(itemId)+delta);
         allCases.value[caseOder].data.items = res;
         // console.log('all-Caseitem:',res)
         return res
@@ -991,7 +1006,9 @@ getchecktoken().then(res=>{
           if(e===beforActiveItem){
             // 目前item與觸發item相同
             // console.log('same')
-            activeItem.value = itemData[0] +  splitSign.value + itemData[1] +  splitSign.value + (parseInt(itemOder)+delta);
+            activeItem.value = itemData[0] +  splitSign.value + itemData[1] +  splitSign.value + itemId;
+            
+            // activeItemChanged(activeItem.value);
           }else{
             // 目前item與觸發item不同
             // console.log('diffrent')
@@ -1090,6 +1107,19 @@ getchecktoken().then(res=>{
     }
     nowCaseData.case.data.items.push(newItemContent);
   }
+  // 移除項目
+  function removeCaseItem(){
+    let nowItemkey = activeItem.value.split(splitSign.value);
+    if(nowItemkey.length===3){
+      // 目前選擇的是Item
+      let nowItemId = nowItemkey[2];
+      let nowItemOrder = nowCaseData.case.data.items.findIndex(x=>parseInt(x.id)===parseInt(nowItemId));
+      // 由資料矩陣中移除
+      nowCaseData.case.data.items.splice(nowItemOrder,1);
+      // 儲存
+      saveCaseBtn();
+    }
+  }
   // 轉成貨幣格式
   function toCurrency(num){
     let parts = num.toString().split('.');
@@ -1141,13 +1171,22 @@ getchecktoken().then(res=>{
   }
   // 監聽activeItem
   watch(activeItem,(getActiveItem)=>{
+    activeItemChanged(getActiveItem);
+  })
+  // activeItem指標變動時
+  function activeItemChanged(getActiveItem){
     // console.log('getActiveItem',getActiveItem);
     if(getActiveItem!==''){
       let idInfo = getActiveItem.split(splitSign.value);
       let itemId = idInfo[2];
       let itemOder = nowCaseData.case.data.items.findIndex(x=>parseInt(x.id)===parseInt(itemId))
       let item = nowCaseData.case.data.items[itemOder];
-      // console.log(item)
+      // console.log({
+      //   idInfo:idInfo,
+      //   itemId:itemId,
+      //   itemOder:itemOder,
+      //   item:item,
+      // });
       if(item){
         if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
           let usedDate = (item.finisheddate && item.finisheddate !== ' ')?item.finisheddate:item.date;
@@ -1167,7 +1206,7 @@ getchecktoken().then(res=>{
       // console.log($('.item-mark-selected'));
       $('.item-mark-selected').removeClass('item-mark-selected');
     }
-  })
+  }
 
   watch(timebarFirstDateNum,(newFirstDateNum)=>{
     usersetting.value ={ ...usersetting.value ,firstDateNum:newFirstDateNum};
@@ -1206,16 +1245,18 @@ getchecktoken().then(res=>{
       title:'',
       filename:'',
     })
+    // console.log('caseItem',caseItem)
   }
   // item移除上傳檔案
   function removeUploadFile(e, index){
-    // console.log('index',index);
+    console.log('index',index);
     let actId = activeItem.value.split(splitSign.value);
-    // console.log('actId',actId);
+    console.log('actId',actId);
     let itemId = actId[2];
-    nowCaseData.case.data.items[itemId].uploads.splice(index,1)
+    let itemOrder = nowCaseData.case.data.items.findIndex(x=>parseInt(x.id)===parseInt(itemId));
+    nowCaseData.case.data.items[itemOrder].uploads.splice(index,1)
   }
-
+  
   // 文字模式更新
   function textJsonChange(e){
     try{
@@ -1427,12 +1468,17 @@ getchecktoken().then(res=>{
         let nowItemOrder = caseItems.findIndex(x=>parseInt(x.id)===parseInt(nowItemId));
         subpath = "01_Case/" + nowCaseId + "/" + nowItemId;
         newName = 'file_' + nowItemULidx.value + path.extname(e.target.value);
-        console.log({
-          'nowCaseOrder':nowCaseOrder,
-          'nowCaseId':nowCaseId,
-          'nowItemId':nowItemId,
-          'nowItemULidx':nowItemULidx.value,
-        });
+
+        // console.log({
+        //   nowCaseOrder: nowCaseOrder,
+        //   nowCaseId: nowCaseId,
+        //   nowItemId: nowItemId,
+        //   caseItems: caseItems,
+        //   'nowItemULidx':nowItemULidx.value,
+        //   nowItemOrder: nowItemOrder,
+        //   subpath: subpath,
+        //   newName: newName,
+        // })
         
         let upIndex = caseItems[nowItemOrder].uploads.findIndex(x=>parseInt(x.id)===parseInt(nowItemULidx.value))
         let myUploadsId = caseItems[nowItemOrder].uploads[upIndex].id;
@@ -1777,9 +1823,15 @@ onMounted(()=>{
                       <!-- 刪除項目 -->
                       <MDBTooltip v-model="tips07">
                         <template #reference>
-                          <MDBBtn class="" size="sm" color="primary" @click.stop="">
+                          <MDBPopconfirm 
+                            :disabled="activeItem==='' || activeItem.includes('base') || activeItem.includes('money') || activeItem.includes('schedule')"
+                            modal
+                            class="btn-sm btn-primary"
+                            message="刪除後無法恢復，確定刪除嗎？" 
+                            cancelText="取消" 
+                            confirmText="確定" @confirm="removeCaseItem($event)">
                             <i class="fas fa-minus"></i>
-                          </MDBBtn>
+                          </MDBPopconfirm>
                         </template>
                         <template #tip>
                           刪除項目
@@ -2269,6 +2321,7 @@ onMounted(()=>{
                 :item-id="nowCaseData.case.id + splitSign + item.name + splitSign + item.id"
                 :is-items="true"
                 :key="idx"
+                :now-item-order="nowItemOrder"
                 v-model="activeItem"
                 @moveitemup="itemMove($event,-1)"
                 @moveitemdown="itemMove($event,1)"
