@@ -217,8 +217,8 @@ onMounted(()=>{
             item.position.left + 'px;'">
           <div 
             v-if="((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' '))" 
-            :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===props.caseData.id + splitSign +item.name + splitSign + idx) && 'item-mark-selected']"
-            @click.stop="props.itemsClick($event,props.caseData.id,props.caseData.id + splitSign +item.name + splitSign + idx)">
+            :class="['item-mark',(item.finisheddate && item.finisheddate !== ' ')?'item-finished':'',(activeItem===props.caseData.id + splitSign +item.name + splitSign + item.id) && 'item-mark-selected']"
+            @click.stop="props.itemsClick($event,props.caseData.id,props.caseData.id + splitSign +item.name + splitSign + item.id)">
             <div class="item-line"></div>
             <div class="item-tri"></div>
             <div class="item-label">{{ item.name }}</div>

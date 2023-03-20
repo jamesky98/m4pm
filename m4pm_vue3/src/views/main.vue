@@ -1145,7 +1145,8 @@ getchecktoken().then(res=>{
     if(getActiveItem!==''){
       let idInfo = getActiveItem.split(splitSign.value);
       let itemId = idInfo[2];
-      let item = nowCaseData.case.data.items[itemId];
+      let itemOder = nowCaseData.case.data.items.findIndex(x=>parseInt(x.id)===parseInt(itemId))
+      let item = nowCaseData.case.data.items[itemOder];
       // console.log(item)
       if(item){
         if((item.date && item.date !== ' ') || (item.finisheddate && item.finisheddate !== ' ')){
@@ -1422,11 +1423,20 @@ getchecktoken().then(res=>{
         let nowCaseOrder = activeItem.value.split(splitSign.value);
         let nowCaseId = nowCaseOrder[0];
         let nowItemId = parseInt(nowCaseOrder[2]);
+        let caseItems = nowCaseData.case.data.items;
+        let nowItemOrder = caseItems.findIndex(x=>parseInt(x.id)===parseInt(nowItemId));
         subpath = "01_Case/" + nowCaseId + "/" + nowItemId;
         newName = 'file_' + nowItemULidx.value + path.extname(e.target.value);
-        let upIndex = nowCaseData.case.data.items[nowItemId].uploads.findIndex(x=>parseInt(x.id)===parseInt(nowItemULidx.value))
-        let myUploadsId = nowCaseData.case.data.items[nowItemId].uploads[upIndex].id;
-        nowCaseData.case.data.items[nowItemId].uploads[upIndex]={
+        console.log({
+          'nowCaseOrder':nowCaseOrder,
+          'nowCaseId':nowCaseId,
+          'nowItemId':nowItemId,
+          'nowItemULidx':nowItemULidx.value,
+        });
+        
+        let upIndex = caseItems[nowItemOrder].uploads.findIndex(x=>parseInt(x.id)===parseInt(nowItemULidx.value))
+        let myUploadsId = caseItems[nowItemOrder].uploads[upIndex].id;
+        nowCaseData.case.data.items[nowItemOrder].uploads[upIndex]={
           id: myUploadsId,
           title: e.target.files[0].name,
           filename: newName,
